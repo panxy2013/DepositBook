@@ -2,6 +2,16 @@
 
 你的私人银行存款记账助手，离线、安全、简洁。
 
+## 下载安装
+
+直接从 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载最新 APK 安装：
+
+| 版本 | 下载 |
+|---|---|
+| v1.0.0 | [deposit-book-v1.0.0.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.0/deposit-book-v1.0.0.apk) |
+
+> 手机上点击下载后，允许安装未知来源应用即可安装。
+
 ## 应用简介（中文）
 
 存款一笔一笔散落在不同银行和产品里，利息到底有多少、什么时候到期？存款账本帮你把所有定期存款、理财产品集中管理，随时掌握总资产和未来收益。
@@ -22,7 +32,6 @@
 ## Overview (English)
 
 **DepositBook — Your private deposit ledger. Offline, secure, and simple.**
-
 Your savings are scattered across banks and products. How much interest have you earned? Which deposit matures next week? DepositBook puts all your fixed-term deposits and wealth products in one place, so you always know your total assets and future earnings at a glance.
 
 **Key Features**
