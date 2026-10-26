@@ -73,6 +73,18 @@ Kotlin · Jetpack Compose · Material 3 · Room · WorkManager · Navigation Com
 
 > `minSdk 26`（Android 8.0+），`compileSdk 36`。
 
+## 截图预览
+
+| 首页总览 | 统计分析 | 存入/到期日历 |
+|:---:|:---:|:---:|
+| ![首页](docs/screenshots/home.png) | ![统计](docs/screenshots/stats.png) | ![日历](docs/screenshots/calendar.png) |
+
+| 操作日志 | 设置与应用锁 |
+|:---:|:---:|
+| ![日志](docs/screenshots/log.png) | ![设置](docs/screenshots/settings.png) |
+
+图片文件放在 `docs/screenshots/` 目录，PNG/JPG 均可，建议竖屏手机截图（1080×2400 左右）。
+
 ## 签名与打包
 
 项目已配置正式签名，`release.jks` + `keystore.properties` 放在项目根目录。
