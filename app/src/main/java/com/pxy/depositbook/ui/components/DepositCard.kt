@@ -1,0 +1,164 @@
+package com.pxy.depositbook.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.pxy.depositbook.data.model.DepositUi
+import com.pxy.depositbook.ui.theme.Accent
+import com.pxy.depositbook.ui.theme.AccentLight
+import com.pxy.depositbook.ui.theme.Danger
+import com.pxy.depositbook.ui.theme.DangerLight
+import com.pxy.depositbook.ui.theme.Warning
+import com.pxy.depositbook.ui.theme.WarningLight
+import com.pxy.depositbook.util.FormatUtils
+
+@Composable
+fun DepositCard(
+    ui: DepositUi,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val d = ui.deposit
+    val statusColor: Color = when {
+        ui.expired -> Color(0xFF8A97A3)
+        ui.urgent -> Danger
+        ui.expiringSoon -> Warning
+        else -> Accent
+    }
+    val statusBg: Color = when {
+        ui.expired -> Color(0xFFEDEFF2)
+        ui.urgent -> DangerLight
+        ui.expiringSoon -> WarningLight
+        else -> AccentLight
+    }
+    val statusText = when {
+        ui.expired -> "已到期"
+        ui.daysLeft == 0L -> "今天到期"
+        else -> "${ui.daysLeft} 天后到期"
+    }
+
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        d.accountName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                    if (!d.productName.isNullOrBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            d.productName!!,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Pill(statusText, statusColor, statusBg)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    FormatUtils.money(d.principal),
+                    fontSize = 21.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "年化 ${FormatUtils.rate(d.annualRate)}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 3.dp),
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            LinearProgressIndicator(
+                progress = { ui.progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = statusColor,
+                trackColor = statusBg,
+            )
+
+            Spacer(Modifier.height(10.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                InfoCol("日利息", "+" + FormatUtils.moneyPlain(ui.dailyInterest), Accent)
+                InfoCol("已获利息", "+" + FormatUtils.moneyPlain(ui.interestEarned), Accent)
+                InfoCol("本金+利息", FormatUtils.moneyPlain(ui.valueNow), MaterialTheme.colorScheme.onSurface)
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Outlined.AccessTime,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(13.dp),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    "${FormatUtils.date(d.startDate)} → ${FormatUtils.date(d.endDate)}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoCol(label: String, value: String, color: Color) {
+    Column {
+        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(2.dp))
+        Text(value, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = color)
+    }
+}
