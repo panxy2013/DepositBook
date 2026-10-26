@@ -75,15 +75,19 @@ Kotlin · Jetpack Compose · Material 3 · Room · WorkManager · Navigation Com
 
 ## 截图预览
 
-| 首页总览 | 统计分析 | 存入/到期日历 |
+| 首页总览 | 存款卡片 | 利息明细 |
 |:---:|:---:|:---:|
-| ![首页](docs/screenshots/home.png) | ![统计](docs/screenshots/stats.png) | ![日历](docs/screenshots/calendar.png) |
+| ![首页](docs/screenshots/home.jpg) | ![存款](docs/screenshots/deposits.jpg) | ![利息](docs/screenshots/interest.jpg) |
 
-| 操作日志 | 设置与应用锁 |
-|:---:|:---:|
-| ![日志](docs/screenshots/log.png) | ![设置](docs/screenshots/settings.png) |
+| 到期日历（年视图） | 日历翻页 | 统计分析 |
+|:---:|:---:|:---:|
+| ![日历](docs/screenshots/calendar.jpg) | ![日历翻页](docs/screenshots/calendar2.jpg) | ![统计](docs/screenshots/stats.jpg) |
 
-图片文件放在 `docs/screenshots/` 目录，PNG/JPG 均可，建议竖屏手机截图（1080×2400 左右）。
+| 账户明细 | 导入导出 | 应用锁 |
+|:---:|:---:|:---:|
+| ![账户](docs/screenshots/accounts.jpg) | ![设置](docs/screenshots/settings.jpg) | ![应用锁](docs/screenshots/settings2.jpg) |
+
+更多截图见 `docs/screenshots/` 目录。
 
 ## 签名与打包
 
