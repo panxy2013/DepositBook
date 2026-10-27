@@ -46,6 +46,13 @@ class OptionsStore(context: Context) {
     }
 
     /** 银行名称列表（不含姓名） */
+    /** 隐私模式默认状态：总览页金额是否默认隐藏（默认开启） */
+    fun privacyDefault(): Boolean = prefs.getBoolean("privacy_default", true)
+
+    fun setPrivacyDefault(on: Boolean) {
+        prefs.edit().putBoolean("privacy_default", on).apply()
+    }
+
     fun banks(): List<String> = read(KEY_BANKS, DEFAULT_BANKS)
 
     fun addBank(name: String) = add(KEY_BANKS, DEFAULT_BANKS, name)

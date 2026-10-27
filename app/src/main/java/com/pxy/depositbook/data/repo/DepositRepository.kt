@@ -1,15 +1,21 @@
 package com.pxy.depositbook.data.repo
 
+import com.pxy.depositbook.data.dao.AssetSnapshotDao
 import com.pxy.depositbook.data.dao.DepositDao
 import com.pxy.depositbook.data.dao.OperationLogDao
+import com.pxy.depositbook.data.entity.AssetSnapshot
+import com.pxy.depositbook.data.model.StatsCalculator
+import com.pxy.depositbook.util.DateUtils
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import com.pxy.depositbook.data.entity.Deposit
 import com.pxy.depositbook.data.entity.OperationLog
 import com.pxy.depositbook.util.FormatUtils
-import kotlinx.coroutines.flow.Flow
 
 class DepositRepository(
     private val depositDao: DepositDao,
     private val logDao: OperationLogDao,
+    private val snapshotDao: AssetSnapshotDao,
 ) {
 
     fun observeAll(): Flow<List<Deposit>> = depositDao.observeAll()
@@ -66,6 +72,40 @@ class DepositRepository(
 
     suspend fun clearLogs() {
         logDao.clear()
+    }
+
+    /**
+     * 记录今天的资产快照（当天多次记录取最新值）。
+     * 历史快照不随后续删除/结清存单变化，只有「清空所有数据」才删除。
+     */
+    suspend fun recordTodaySnapshot() {
+        val summary = StatsCalculator.summarize(depositDao.getAllOnce())
+        val snapshot = AssetSnapshot(
+            id = 0L,
+            day = DateUtils.today().toString(),
+            totalPrincipal = summary.totalPrincipal,
+            totalInterest = summary.totalInterestEarned,
+            totalValue = summary.totalValueNow,
+            activeCount = summary.activeCount,
+            recordedAt = System.currentTimeMillis(),
+        )
+        snapshotDao.upsert(snapshot)
+    }
+
+    /** 历史快照：按日期升序返回全部记录 */
+    fun observeSnapshots(): Flow<List<AssetSnapshot>> = snapshotDao.observeAll()
+
+    /** 一次性读取全部快照（导出用） */
+    suspend fun getAllSnapshotsOnce(): List<AssetSnapshot> = snapshotDao.getAllOnce()
+
+    /**
+     * 清空所有数据：存款、日志、历史资产快照全部删除。
+     */
+    suspend fun clearAllData() {
+        depositDao.getAllOnce().forEach { delete(it) }
+        logDao.clear()
+        snapshotDao.clearAll()
+        addLog("CLEAR", "已清空全部数据（含历史资产快照）")
     }
 
     private suspend fun log(deposit: Deposit, action: String) {

@@ -42,9 +42,19 @@ import com.pxy.depositbook.ui.theme.Warning
 import com.pxy.depositbook.util.FormatUtils
 import com.pxy.depositbook.viewmodel.HomeViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.platform.LocalContext
+import com.pxy.depositbook.DepositApp
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+/** 隐私模式下的金额占位符（不带单位） */
+private const val HIDDEN = "***"
 
 @Composable
 fun HomeScreen(
@@ -56,6 +66,11 @@ fun HomeScreen(
     val vm: HomeViewModel = viewModel(factory = AppViewModelFactory.provide(repository))
     val state by vm.state.collectAsStateWithLifecycle()
     val today = remember { LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)) }
+
+    val context = LocalContext.current
+    val options = remember { (context.applicationContext as DepositApp).options }
+    // 隐私模式：默认值来自设置页，可随时点眼睛切换（只作用于总览区，30天内到期笔数除外）
+    var privacy by remember { mutableStateOf(options.privacyDefault()) }
 
     Scaffold(
         floatingActionButton = {
@@ -77,26 +92,39 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                Column {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "存款总览",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Text(
-                        today,
-                        fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "存款总览",
+                            style = MaterialTheme.typography.headlineSmall,
+                        )
+                        Text(
+                            today,
+                            fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // 隐私开关：隐藏总览区金额，仅 30 天内到期笔数始终可见
+                    IconButton(onClick = { privacy = !privacy }) {
+                        Icon(
+                            imageVector = if (privacy) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (privacy) "显示金额" else "隐藏金额",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
             item {
                 HeroStatCard(
                     title = "当前本金总数（${state.summary.activeCount} 笔在存）",
-                    value = FormatUtils.money(state.summary.totalPrincipal),
-                    subtitle = "截止今日 本金+利息 " +
-                            FormatUtils.money(state.summary.totalValueNow),
+                    value = if (privacy) HIDDEN else FormatUtils.money(state.summary.totalPrincipal),
+                    subtitle = if (privacy) {
+                        "截止今日 本金+利息 $HIDDEN"
+                    } else {
+                        "截止今日 本金+利息 " + FormatUtils.money(state.summary.totalValueNow)
+                    },
                 )
             }
 
@@ -104,7 +132,7 @@ fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiniStat(
                         label = "今日新增利息",
-                        value = "+" + FormatUtils.moneyPlain(state.summary.todayInterest),
+                        value = if (privacy) HIDDEN else "+" + FormatUtils.moneyPlain(state.summary.todayInterest),
                         valueColor = Accent,
                         icon = { Icon(Icons.Outlined.TrendingUp, null, modifier = Modifier.height(14.dp), tint = Accent) },
                         modifier = Modifier.weight(1f),
@@ -112,7 +140,7 @@ fun HomeScreen(
                     )
                     MiniStat(
                         label = "累计已获利息",
-                        value = "+" + FormatUtils.moneyPlain(state.summary.totalInterestEarned),
+                        value = if (privacy) HIDDEN else "+" + FormatUtils.moneyPlain(state.summary.totalInterestEarned),
                         valueColor = Accent,
                         icon = { Icon(Icons.Outlined.Savings, null, modifier = Modifier.height(14.dp), tint = Accent) },
                         modifier = Modifier.weight(1f),
@@ -133,7 +161,7 @@ fun HomeScreen(
                     )
                     MiniStat(
                         label = "到期预估总额",
-                        value = FormatUtils.moneyCompact(state.summary.totalValueAtMaturity),
+                        value = if (privacy) HIDDEN else FormatUtils.moneyCompact(state.summary.totalValueAtMaturity),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpenHomeDetail("MATURITY_TOTAL") },
                     )

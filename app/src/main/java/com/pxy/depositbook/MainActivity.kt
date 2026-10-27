@@ -29,17 +29,24 @@ class MainActivity : ComponentActivity() {
             if (!security.isEnabled()) {
                 isLocked = false
                 wasInBackground = false
+                LockManager.clear()
                 return
             }
             if (wasInBackground) {
-                isLocked = true
+                // 文件选择/分享等挂起期内（2 分钟内）返回，此次流程放行；
+                // 超过 2 分钟则仍要求解锁
+                if (!LockManager.isSuspended()) {
+                    isLocked = true
+                }
             }
+            // 一旦返回就重置挂起，接下来的退后台会正常触发锁
+            LockManager.clear()
         }
         override fun onActivityPaused(activity: Activity) {
             if (activity != this@MainActivity) return
             val app = application as DepositApp
-            // 文件选择/分享等挂起期间退后台，不标记需要锁
-            if (app.security.isEnabled() && !LockManager.isSuspended()) {
+            // 统一标记为已进入后台，是否放行由返回时的挂起状态决定
+            if (app.security.isEnabled()) {
                 wasInBackground = true
             }
         }

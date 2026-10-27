@@ -11,7 +11,7 @@ class DepositApp : Application() {
 
     val database: AppDatabase by lazy { AppDatabase.get(this) }
     val repository: DepositRepository by lazy {
-        DepositRepository(database.depositDao(), database.operationLogDao())
+        DepositRepository(database.depositDao(), database.operationLogDao(), database.assetSnapshotDao())
     }
     val options: OptionsStore by lazy { OptionsStore(this) }
     val security: SecurityStore by lazy { SecurityStore(this) }

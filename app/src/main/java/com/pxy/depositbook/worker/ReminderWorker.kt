@@ -29,9 +29,25 @@ class ReminderWorker(
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val dao = AppDatabase.get(applicationContext).depositDao()
+        val db = AppDatabase.get(applicationContext)
+        val dao = db.depositDao()
         val deposits = dao.getAllOnce().filter { it.isActive }
         val today = DateUtils.today()
+
+        // 每日记录一次资产快照（历史数据：之后删除/结清存单不影响已有记录）
+        runCatching {
+            val summary = com.pxy.depositbook.data.model.StatsCalculator.summarize(dao.getAllOnce())
+            db.assetSnapshotDao().upsert(
+                com.pxy.depositbook.data.entity.AssetSnapshot(
+                    day = today.toString(),
+                    totalPrincipal = summary.totalPrincipal,
+                    totalInterest = summary.totalInterestEarned,
+                    totalValue = summary.totalValueNow,
+                    activeCount = summary.activeCount,
+                    recordedAt = System.currentTimeMillis(),
+                )
+            )
+        }
 
         val toRemind = deposits.filter { d ->
             val left = InterestCalculator.daysLeft(d, today)

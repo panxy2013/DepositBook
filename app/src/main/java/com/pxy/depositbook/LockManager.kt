@@ -12,8 +12,8 @@ import android.util.Log
  */
 object LockManager {
 
-    /** 挂起有效期：5 分钟 */
-    private const val SUSPEND_TIMEOUT_MS = 5 * 60_000L
+    /** 挂起有效期：2 分钟 */
+    private const val SUSPEND_TIMEOUT_MS = 2 * 60_000L
 
     @Volatile
     private var suspendedAt: Long = 0L

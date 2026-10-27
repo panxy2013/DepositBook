@@ -30,6 +30,15 @@ class SecurityStore(context: Context) {
         prefs.edit().putString("pattern", pattern).apply()
     }
 
+    /** 是否已配置数字密码 */
+    fun hasPin(): Boolean = getPin().isNotBlank()
+
+    /** 是否已配置手势密码 */
+    fun hasPattern(): Boolean = getPattern().isNotBlank()
+
+    /** 应用锁是否可用（至少配置了一种验证方式） */
+    fun isReady(): Boolean = hasPin() || hasPattern()
+
     fun clear() {
         prefs.edit().clear().apply()
     }

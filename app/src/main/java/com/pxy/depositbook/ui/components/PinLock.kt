@@ -34,7 +34,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun PinLock(
+    modifier: Modifier = Modifier,
     title: String = "请输入数字密码",
+    subtitle: String = "",
     onSuccess: (String) -> Unit = {},
     onVerify: ((String) -> Boolean)? = null,
     onError: () -> Unit = {},
@@ -44,9 +46,9 @@ fun PinLock(
     var error by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {

@@ -86,6 +86,7 @@ fun SettingsScreen(repository: DepositRepository) {
         products = optionsStore.products()
     }
     var message by remember { mutableStateOf<String?>(null) }
+    var privacyDefaultOn by remember { mutableStateOf(optionsStore.privacyDefault()) }
     // 状态提醒：Toast 立即可见 + 页面底部横幅留痕
     fun showStatus(text: String) {
         message = text
@@ -335,6 +336,29 @@ fun SettingsScreen(repository: DepositRepository) {
             )
         }
 
+        SettingsGroup("隐私") {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("总览默认隐藏金额")
+                        Text(
+                            "开启后进入总览页默认显示 ***，点右上角眼睛可随时切换",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = privacyDefaultOn,
+                        onCheckedChange = { checked ->
+                            privacyDefaultOn = checked
+                            optionsStore.setPrivacyDefault(checked)
+                            message = if (checked) "已开启默认隐藏金额" else "已关闭默认隐藏金额"
+                        },
+                    )
+                }
+            }
+        }
+
         SecuritySection()
 
         SettingsGroup("关于") {
@@ -383,7 +407,7 @@ fun SettingsScreen(repository: DepositRepository) {
                 TextButton(onClick = {
                     showClearDialog = false
                     scope.launch {
-                        repository.getAllOnce().forEach { repository.delete(it) }
+                        repository.clearAllData()
                         showStatus("已清空")
                     }
                 }) { Text("清空", color = MaterialTheme.colorScheme.error) }
@@ -702,10 +726,23 @@ private fun SecuritySection() {
     val security = app.security
     var enabled by remember { mutableStateOf(security.isEnabled()) }
     var lockType by remember { mutableStateOf(security.getLockType()) }
+    var pinConfigured by remember { mutableStateOf(security.hasPin()) }
+    var patternConfigured by remember { mutableStateOf(security.hasPattern()) }
     var showSet by remember { mutableStateOf(false) }
     var step by remember { mutableStateOf(0) }
     var tempPin by remember { mutableStateOf("") }
     var tempPattern by remember { mutableStateOf("") }
+    // 当前设置弹窗针对的类型与设置完成后的动作（pendingEnable / pendingSwitch）
+    var setType by remember { mutableStateOf("pin") }
+    var pendingEnable by remember { mutableStateOf(false) }
+    var pendingSwitch by remember { mutableStateOf(false) }
+    var setupHint by remember { mutableStateOf("") }
+
+    fun hint(): String = when {
+        pinConfigured && patternConfigured -> "两种密码均已配置，可在解锁界面切换"
+        pinConfigured -> "数字密码已配置；切换手势前会先要求设置手势"
+        else -> "尚未配置密码"
+    }
 
     SettingsGroup("安全") {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -717,10 +754,14 @@ private fun SecuritySection() {
                 androidx.compose.material3.Switch(
                     checked = enabled,
                     onCheckedChange = { checked ->
-                        if (checked && security.getPin().isEmpty() && security.getPattern().isEmpty()) {
+                        if (checked && !pinConfigured) {
+                            // 规则：数字密码必须先配置
+                            setType = "pin"
+                            pendingEnable = true
+                            pendingSwitch = false
                             showSet = true
                             step = 0
-                            enabled = false
+                            setupHint = "开启应用锁前，请先设置数字密码"
                         } else {
                             enabled = checked
                             security.setEnabled(checked)
@@ -732,55 +773,110 @@ private fun SecuritySection() {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("解锁方式", modifier = Modifier.weight(1f))
                     TextButton(onClick = {
-                        lockType = if (lockType == "pin") "pattern" else "pin"
-                        security.setLockType(lockType)
+                        val target = if (lockType == "pin") "pattern" else "pin"
+                        val configured = if (target == "pin") pinConfigured else patternConfigured
+                        if (configured) {
+                            lockType = target
+                            security.setLockType(target)
+                        } else {
+                            // 规则：切换前必须先配置目标方式
+                            setType = target
+                            pendingEnable = false
+                            pendingSwitch = true
+                            showSet = true
+                            step = 0
+                            setupHint = if (target == "pattern") "切换到手势密码前，请先设置手势密码" else "切换到数字密码前，请先设置数字密码"
+                        }
                     }) {
                         Text(if (lockType == "pin") "数字密码" else "手势密码")
                     }
                 }
-                TextButton(onClick = { showSet = true; step = 0; tempPin = ""; tempPattern = "" }) {
-                    Text("修改密码")
+                Text(
+                    hint(),
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = {
+                    setType = lockType
+                    pendingEnable = false
+                    pendingSwitch = false
+                    showSet = true
+                    step = 0
+                    tempPin = ""
+                    tempPattern = ""
+                }) {
+                    Text("修改${if (lockType == "pin") "数字密码" else "手势密码"}")
                 }
             }
         }
     }
 
     if (showSet) {
-        androidx.compose.ui.window.Dialog(onDismissRequest = { showSet = false }) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = {
+            showSet = false
+            pendingEnable = false
+            pendingSwitch = false
+        }) {
             androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large) {
-                if (lockType == "pin") {
-                    if (step == 0) {
-                        PinLock(title = "设置数字密码（4位）", onSuccess = { pin -> tempPin = pin; step = 1 })
-                    } else {
-                        PinLock(
-                            title = "确认数字密码",
-                            onVerify = { it == tempPin },
-                            onSuccess = {
-                                security.setPin(tempPin)
-                                security.setLockType("pin")
-                                security.setEnabled(true)
-                                enabled = true
-                                showSet = false
-                            },
-                            onError = { step = 0 },
+                Column(Modifier.padding(8.dp)) {
+                    if (setupHint.isNotBlank()) {
+                        Text(
+                            setupHint,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
-                } else {
-                    if (step == 0) {
-                        PatternLock(title = "设置手势密码（至少4点）", onSuccess = { pattern -> tempPattern = pattern; step = 1 })
+                    if (setType == "pin") {
+                        if (step == 0) {
+                            PinLock(title = "设置数字密码（4位）", onSuccess = { pin -> tempPin = pin; step = 1 })
+                        } else {
+                            PinLock(
+                                title = "确认数字密码",
+                                onVerify = { it == tempPin },
+                                onSuccess = {
+                                    security.setPin(tempPin)
+                                    pinConfigured = true
+                                    if (pendingEnable || pendingSwitch) {
+                                        security.setEnabled(true)
+                                        enabled = true
+                                    }
+                                    if (pendingSwitch || pendingEnable || !security.isReady()) {
+                                        security.setLockType("pin")
+                                        lockType = "pin"
+                                    }
+                                    showSet = false
+                                    pendingEnable = false
+                                    pendingSwitch = false
+                                    setupHint = ""
+                                },
+                                onError = { step = 0 },
+                            )
+                        }
                     } else {
-                        PatternLock(
-                            title = "确认手势密码",
-                            onVerify = { it == tempPattern },
-                            onSuccess = {
-                                security.setPattern(tempPattern)
-                                security.setLockType("pattern")
-                                security.setEnabled(true)
-                                enabled = true
-                                showSet = false
-                            },
-                            onError = { step = 0 },
-                        )
+                        if (step == 0) {
+                            PatternLock(title = "设置手势密码（至少4点）", onSuccess = { pattern -> tempPattern = pattern; step = 1 })
+                        } else {
+                            PatternLock(
+                                title = "确认手势密码",
+                                onVerify = { it == tempPattern },
+                                onSuccess = {
+                                    security.setPattern(tempPattern)
+                                    patternConfigured = true
+                                    if (pendingEnable || pendingSwitch) {
+                                        security.setEnabled(true)
+                                        enabled = true
+                                        security.setLockType("pattern")
+                                        lockType = "pattern"
+                                    }
+                                    showSet = false
+                                    pendingEnable = false
+                                    pendingSwitch = false
+                                    setupHint = ""
+                                },
+                                onError = { step = 0 },
+                            )
+                        }
                     }
                 }
             }

@@ -24,19 +24,28 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -114,11 +123,72 @@ fun StatsScreen(
         }
 
         item {
-            SectionCard("近 6 个月本金趋势") {
-                if (state.trend.isEmpty()) {
+            var trendMode by remember { mutableStateOf("month") }
+            SectionCard("本金趋势") {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = trendMode == "month",
+                        onClick = { trendMode = "month" },
+                        label = { Text("按月") },
+                    )
+                    FilterChip(
+                        selected = trendMode == "year",
+                        onClick = { trendMode = "year" },
+                        label = { Text("按年") },
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                val points = if (trendMode == "month") state.monthTrend else state.yearTrend
+                if (points.isEmpty()) {
                     EmptyHint("暂无数据")
                 } else {
-                    TrendBarChart(state.trend)
+                    TrendLineChart(points)
+                }
+            }
+        }
+
+        item {
+            SectionCard("历史资产记录（每日快照）") {
+                if (state.history.isEmpty()) {
+                    EmptyHint("暂无记录，每天会自动记录一次")
+                } else {
+                    // 按月归并：每月取最后一天的快照，倒序展示
+                    val monthly = state.history
+                        .groupBy { it.day.take(7) }
+                        .map { (_, list) -> list.last() }
+                        .sortedByDescending { it.day }
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        monthly.take(24).forEach { s ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "${s.day.take(4)}年${s.day.take(7).takeLast(2)}月",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.width(78.dp),
+                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        "本金 ${FormatUtils.moneyPlain(s.totalPrincipal)} · 本息 ${FormatUtils.moneyPlain(s.totalValue)}",
+                                        fontSize = 12.sp,
+                                    )
+                                    Text(
+                                        "已获利息 +${FormatUtils.moneyPlain(s.totalInterest)} · 在存 ${s.activeCount} 笔",
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            "快照为历史数据，之后删除/结清存单不会改变已有记录；清空所有数据才会删除",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                    }
                 }
             }
         }
@@ -244,44 +314,90 @@ private fun LegendRow(color: Color, name: String, ratio: Float, onClick: () -> U
 }
 
 @Composable
-private fun TrendBarChart(points: List<TrendPoint>) {
+private fun TrendLineChart(points: List<TrendPoint>) {
     val max = points.maxOf { it.total }.coerceAtLeast(1.0)
+    val lineColor = MaterialTheme.colorScheme.primary
+    val labelColor = MaterialTheme.colorScheme.onSurface
+    val dotFill = MaterialTheme.colorScheme.surface
+
     Column {
-        Row(
-            Modifier.fillMaxWidth().height(160.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.Bottom,
-        ) {
-            points.forEach { p ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        FormatUtils.moneyCompact(p.total),
-                        fontSize = 9.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Box(
-                        Modifier
-                            .width(22.dp)
-                            .height((110 * (p.total / max)).dp.coerceAtLeast(4.dp))
-                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                            .background(
-                                androidx.compose.ui.graphics.Brush.verticalGradient(
-                                    listOf(ChartColors[0], ChartColors[1])
-                                )
-                            )
-                    )
+        Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
+            val n = points.size
+
+            val paint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                textSize = 10.sp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+                color = labelColor.toArgb()
+            }
+            val topPad = 20.dp.toPx() // 点上方金额标签的空间
+            val chartBottom = size.height
+            val chartH = chartBottom - topPad
+
+            val stepX = size.width / (n - 1).coerceAtLeast(1)
+            val centers = points.mapIndexed { i, _ ->
+                if (n == 1) size.width / 2f else stepX * i
+            }
+            val ys = points.map { p ->
+                chartBottom - ((p.total / max) * (chartH - 8.dp.toPx())).toFloat()
+            }
+
+            // 折线（两点以上）
+            if (n >= 2) {
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(centers.first(), ys.first())
+                    for (i in 1 until n) lineTo(centers[i], ys[i])
                 }
+                drawPath(
+                    path = path,
+                    color = lineColor,
+                    style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                )
+            }
+
+            // 每个点：圆点 + 点上方金额
+            // 去重规则：与上一个已显示金额相同的点（同一段水平线）不重复标注；
+            // 相邻两个标签矩形重叠时也跳过，避免挤在一起
+            var lastText = ""
+            var lastRect: android.graphics.RectF? = null
+            points.forEachIndexed { i, p ->
+                val cx = centers[i]
+                val cy = ys[i]
+                drawCircle(color = dotFill, radius = 6.dp.toPx(), center = Offset(cx, cy))
+                drawCircle(color = lineColor, radius = 4.5f.dp.toPx(), center = Offset(cx, cy))
+
+                val text = FormatUtils.moneyCompact(p.total)
+                val halfW = paint.measureText(text) / 2f
+                val labelX = cx.coerceIn(halfW + 2.dp.toPx(), size.width - halfW - 2.dp.toPx())
+                val labelY = (cy - 12.dp.toPx()).coerceAtLeast(paint.textSize)
+                val rect = android.graphics.RectF(
+                    labelX - halfW,
+                    labelY - paint.textSize,
+                    labelX + halfW,
+                    labelY + 2.dp.toPx(),
+                )
+                val prev = lastRect
+                if (text == lastText || (prev != null && android.graphics.RectF.intersects(prev, rect))) {
+                    return@forEachIndexed
+                }
+                drawIntoCanvas { canvas ->
+                    canvas.nativeCanvas.drawText(text, labelX, labelY, paint)
+                }
+                lastText = text
+                lastRect = rect
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            points.forEach { p ->
-                Text(p.monthLabel, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(6.dp))
+        // 横轴标签（点太多时隔一个显示，避免重叠）
+        Row(Modifier.fillMaxWidth()) {
+            points.forEachIndexed { i, p ->
+                Text(
+                    if (points.size > 8 && i % 2 == 1) "" else p.monthLabel,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
