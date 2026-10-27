@@ -2,6 +2,7 @@ package com.pxy.depositbook.data.backup
 
 import com.pxy.depositbook.data.entity.Deposit
 import com.pxy.depositbook.util.DateUtils
+import com.pxy.depositbook.util.I18n
 import com.pxy.depositbook.util.InterestCalculator
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
@@ -25,7 +26,7 @@ object XlsxExporter {
             zip.write(ROOT_RELS.toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("xl/workbook.xml"))
-            zip.write(WORKBOOK.toByteArray(Charsets.UTF_8))
+            zip.write(workbookXml().toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("xl/_rels/workbook.xml.rels"))
             zip.write(WORKBOOK_RELS.toByteArray(Charsets.UTF_8))
@@ -41,9 +42,18 @@ object XlsxExporter {
 
     private fun sheetXml(deposits: List<Deposit>, today: LocalDate): String {
         val headers = listOf(
-            "理财账户", "本金", "产品名称", "预期年化利率",
-            "日利息", "需存天数", "存入天数", "剩余天数",
-            "预估资产", "到期日", "存入时间", "已经获得利息",
+            I18n.s("理财账户", "Account"),
+            I18n.s("本金", "Principal"),
+            I18n.s("产品名称", "Product"),
+            I18n.s("预期年化利率", "Annual Rate"),
+            I18n.s("日利息", "Daily Interest"),
+            I18n.s("需存天数", "Term Days"),
+            I18n.s("存入天数", "Days Held"),
+            I18n.s("剩余天数", "Days Left"),
+            I18n.s("预估资产", "Current Value"),
+            I18n.s("到期日", "Maturity"),
+            I18n.s("存入时间", "Deposit Date"),
+            I18n.s("已经获得利息", "Interest Earned"),
         )
         val sb = StringBuilder()
         sb.append("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""")
@@ -103,7 +113,7 @@ object XlsxExporter {
 
         // 合计行
         sb.append("""<row r="$row">""")
-        sb.append(cellStr("A$row", "合计", style = 1))
+        sb.append(cellStr("A$row", I18n.s("合计", "Total"), style = 1))
         sb.append(cellNum("B$row", totalPrincipal, 2, style = 1))
         sb.append(cellStr("C$row", ""))
         sb.append(cellStr("D$row", ""))
@@ -182,10 +192,10 @@ object XlsxExporter {
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
 </Relationships>"""
 
-    private const val WORKBOOK = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    private fun workbookXml(): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<sheets><sheet name="总账" sheetId="1" r:id="rId1"/></sheets>
-</workbook>"""
+<sheets><sheet name="${I18n.s("总账", "General Ledger")}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>""".trimIndent()
 
     private const val WORKBOOK_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">

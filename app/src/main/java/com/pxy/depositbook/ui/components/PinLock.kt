@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.components
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +37,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun PinLock(
     modifier: Modifier = Modifier,
-    title: String = "请输入数字密码",
+    title: String = I18n.s("请输入数字密码", "Enter your PIN"),
     subtitle: String = "",
     onSuccess: (String) -> Unit = {},
     onVerify: ((String) -> Boolean)? = null,
@@ -66,7 +68,7 @@ fun PinLock(
         }
         Spacer(Modifier.height(32.dp))
         if (error) {
-            Text("密码错误", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+            Text(I18n.s("密码错误", "Wrong PIN"), color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
             Spacer(Modifier.height(16.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -95,7 +97,7 @@ fun PinLock(
                                     },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = "删除")
+                                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = I18n.s("删除", "Delete"))
                             }
                         } else {
                             Box(

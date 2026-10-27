@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.log
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,19 +67,19 @@ fun LogScreen(repository: DepositRepository) {
     if (showClear) {
         AlertDialog(
             onDismissRequest = { showClear = false },
-            title = { Text("清空日志") },
-            text = { Text("确定要清空全部操作日志吗？此操作不可恢复。") },
+            title = { Text(I18n.s("清空日志", "Clear log")) },
+            text = { Text(I18n.s("确定要清空全部操作日志吗？此操作不可恢复。", "Clear all operation logs? This cannot be undone.")) },
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
                         repository.clearLogs()
-                        android.widget.Toast.makeText(context, "已清空日志", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, I18n.s("已清空日志", "Logs cleared"), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     showClear = false
-                }) { Text("清空", color = Danger) }
+                }) { Text(I18n.s("清空", "Clear"), color = Danger) }
             },
             dismissButton = {
-                TextButton(onClick = { showClear = false }) { Text("取消") }
+                TextButton(onClick = { showClear = false }) { Text(I18n.s("取消", "Cancel")) }
             },
         )
     }
@@ -85,19 +87,19 @@ fun LogScreen(repository: DepositRepository) {
     pendingDelete?.let { log ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("删除日志") },
-            text = { Text("确定要删除这条操作日志吗？") },
+            title = { Text(I18n.s("删除日志", "Delete record")) },
+            text = { Text(I18n.s("确定要删除这条操作日志吗？", "Delete this operation record?")) },
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
                         repository.deleteLog(log.id)
-                        android.widget.Toast.makeText(context, "已删除日志", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, I18n.s("已删除日志", "Record deleted"), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     pendingDelete = null
-                }) { Text("删除", color = Danger) }
+                }) { Text(I18n.s("删除", "Delete"), color = Danger) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+                TextButton(onClick = { pendingDelete = null }) { Text(I18n.s("取消", "Cancel")) }
             },
         )
     }
@@ -110,17 +112,17 @@ fun LogScreen(repository: DepositRepository) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("操作日志", style = MaterialTheme.typography.headlineSmall)
+                    Text(I18n.s("操作日志", "Operation Log"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "共 ${logs.size} 条记录",
+                        I18n.s("共 ${logs.size} 条记录", "${logs.size} records"),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (logs.isNotEmpty()) {
                     IconButton(onClick = { showClear = true }) {
-                        Icon(Icons.Outlined.DeleteSweep, contentDescription = "清空日志", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Outlined.DeleteSweep, contentDescription = I18n.s("清空日志", "Clear log"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -130,7 +132,7 @@ fun LogScreen(repository: DepositRepository) {
         if (logs.isEmpty()) {
             item {
                 Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                    Text("暂无操作记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(I18n.s("暂无操作记录", "No records yet"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -144,11 +146,11 @@ fun LogScreen(repository: DepositRepository) {
 @Composable
 private fun LogItem(log: OperationLog, onDelete: () -> Unit) {
     val (color, label) = when (log.action) {
-        "CREATE" -> Accent to "新增"
-        "UPDATE" -> ChartColors[5] to "修改"
-        "DELETE" -> Danger to "删除"
-        "SETTLE" -> Warning to "结清"
-        "IMPORT" -> ChartColors[4] to "导入"
+        "CREATE" -> Accent to I18n.s("新增", "Add")
+        "UPDATE" -> ChartColors[5] to I18n.s("修改", "Edit")
+        "DELETE" -> Danger to I18n.s("删除", "Delete")
+        "SETTLE" -> Warning to I18n.s("结清", "Settle")
+        "IMPORT" -> ChartColors[4] to I18n.s("导入", "Import")
         else -> MaterialTheme.colorScheme.onSurfaceVariant to log.action
     }
     Card(
@@ -182,7 +184,7 @@ private fun LogItem(log: OperationLog, onDelete: () -> Unit) {
             IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
                 Icon(
                     Icons.Outlined.Delete,
-                    contentDescription = "删除日志",
+                    contentDescription = I18n.s("删除日志", "Delete record"),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )

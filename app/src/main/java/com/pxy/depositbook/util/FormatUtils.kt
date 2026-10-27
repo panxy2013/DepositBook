@@ -1,5 +1,6 @@
 package com.pxy.depositbook.util
 
+import com.pxy.depositbook.util.I18n
 import java.text.DecimalFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -16,11 +17,18 @@ object FormatUtils {
 
     fun moneyPlain(v: Double): String = money.format(v)
 
-    /** 大额简写，如 1.2万、360万 */
-    fun moneyCompact(v: Double): String = when {
-        kotlin.math.abs(v) >= 100_000_000 -> money.format(v / 100_000_000) + "亿"
-        kotlin.math.abs(v) >= 10_000 -> money.format(v / 10_000) + "万"
-        else -> money.format(v)
+    /** 大额简写，如 1.2万、360万；英文版用 k / M */
+    fun moneyCompact(v: Double): String {
+        val a = kotlin.math.abs(v)
+        return if (I18n.isZh) when {
+            a >= 100_000_000 -> money.format(v / 100_000_000) + "亿"
+            a >= 10_000 -> money.format(v / 10_000) + "万"
+            else -> money.format(v)
+        } else when {
+            a >= 1_000_000 -> money.format(v / 1_000_000) + "M"
+            a >= 1_000 -> money.format(v / 1_000) + "k"
+            else -> money.format(v)
+        }
     }
 
     fun rate(v: Double): String = rate.format(v)

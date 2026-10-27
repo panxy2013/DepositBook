@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.components
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +35,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun PatternLock(
     modifier: Modifier = Modifier,
-    title: String = "请绘制手势密码",
+    title: String = I18n.s("请绘制手势密码", "Draw your pattern"),
     subtitle: String = "",
     onSuccess: (String) -> Unit = {},
     onVerify: ((String) -> Boolean)? = null,
@@ -56,7 +58,7 @@ fun PatternLock(
         Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(16.dp))
         if (error) {
-            Text("手势密码错误", color = MaterialTheme.colorScheme.error)
+            Text(I18n.s("手势密码错误", "Wrong pattern"), color = MaterialTheme.colorScheme.error)
             Spacer(Modifier.height(8.dp))
         }
         // 手势区随可用空间放大（不再固定 280dp）
@@ -150,7 +152,7 @@ fun PatternLock(
         }
         Spacer(Modifier.height(16.dp))
         Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("至少连接 4 个点", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(I18n.s("至少连接 4 个点", "Connect at least 4 dots"), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

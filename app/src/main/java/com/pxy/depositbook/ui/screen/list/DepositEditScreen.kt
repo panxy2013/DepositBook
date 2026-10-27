@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.list
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -102,14 +104,19 @@ fun DepositEditScreen(
         mutableStateOf(origin?.startDate?.let { DateUtils.toDate(it) } ?: LocalDate.now())
     }
 
-    val termUnits = listOf("月", "天", "年")
+    // 存期单位内部用固定代码（Y/M/D），显示时按当前语言翻译
+    val termUnits = listOf(
+        UnitOption("Y", "年", "Year(s)"),
+        UnitOption("M", "月", "Month(s)"),
+        UnitOption("D", "天", "Day(s)"),
+    )
     var termUnit by remember(origin) {
         val d = origin?.termDays ?: 365
         mutableStateOf(
             when {
-                d % 365 == 0 && d != 0 -> "年"
-                d % 30 == 0 && d != 0 -> "月"
-                else -> "天"
+                d % 365 == 0 && d != 0 -> "Y"
+                d % 30 == 0 && d != 0 -> "M"
+                else -> "D"
             },
         )
     }
@@ -123,9 +130,9 @@ fun DepositEditScreen(
         mutableStateOf(
             when {
                 actualDays <= 0L -> d.toString()
-                termUnit == "年" && actualDays % 365L == 0L -> (actualDays / 365L).toString()
-                termUnit == "月" && actualDays % 30L == 0L -> (actualDays / 30L).toString()
-                termUnit == "天" -> actualDays.toString()
+                termUnit == "Y" && actualDays % 365L == 0L -> (actualDays / 365L).toString()
+                termUnit == "M" && actualDays % 30L == 0L -> (actualDays / 30L).toString()
+                termUnit == "D" -> actualDays.toString()
                 else -> actualDays.toString()
             },
         )
@@ -137,9 +144,9 @@ fun DepositEditScreen(
             startDate
         } else {
             when (termUnit) {
-                "年" -> startDate.plusYears(termCountVal)
-                "月" -> startDate.plusMonths(termCountVal)
-                "天" -> startDate.plusDays(termCountVal)
+                "Y" -> startDate.plusYears(termCountVal)
+                "M" -> startDate.plusMonths(termCountVal)
+                "D" -> startDate.plusDays(termCountVal)
                 else -> startDate.plusMonths(termCountVal)
             }
         }
@@ -158,10 +165,10 @@ fun DepositEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (origin == null) "新增存款" else "编辑存款") },
+                title = { Text(if (origin == null) I18n.s("新增存款", "Add Deposit") else I18n.s("编辑存款", "Edit Deposit")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, I18n.s("返回", "Back"))
                     }
                 },
             )
@@ -176,17 +183,17 @@ fun DepositEditScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             DropdownField(
-                label = "银行名称",
+                label = I18n.s("银行名称", "Bank"),
                 value = accountName,
                 options = bankOptions,
-                placeholder = if (bankOptions.isEmpty()) "请先到「设置」添加银行" else "请选择银行",
+                placeholder = if (bankOptions.isEmpty()) I18n.s("请先到「设置」添加银行", "Add a bank in Settings first") else I18n.s("请选择银行", "Select a bank"),
                 onSelect = { accountName = it },
                 modifier = Modifier.fillMaxWidth(),
             )
 
             if (bankOptions.isEmpty()) {
                 Text(
-                    "还没有可选银行，请到「设置 → 选项维护 → 银行名称」里添加，或点下方按钮直接新建。",
+                    I18n.s("还没有可选银行，请到「设置 → 选项维护 → 银行名称」里添加，或点下方按钮直接新建。", "No banks yet. Add in Settings → Options → Banks, or create one below."),
                     fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -195,7 +202,7 @@ fun DepositEditScreen(
                     OutlinedTextField(
                         value = newBank,
                         onValueChange = { newBank = it },
-                        placeholder = { Text("输入银行名称", fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize }) },
+                        placeholder = { Text(I18n.s("输入银行名称", "Bank name"), fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize }) },
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
@@ -211,15 +218,15 @@ fun DepositEditScreen(
                             }
                         },
                         enabled = newBank.isNotBlank(),
-                    ) { Text("添加") }
+                    ) { Text(I18n.s("添加", "Add")) }
                 }
             }
 
             DropdownField(
-                label = "产品名称",
+                label = I18n.s("产品名称", "Product"),
                 value = productName,
                 options = productOptions,
-                placeholder = "请选择产品",
+                placeholder = I18n.s("请选择产品", "Select a product"),
                 onSelect = { productName = it },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -227,7 +234,7 @@ fun DepositEditScreen(
             OutlinedTextField(
                 value = principal,
                 onValueChange = { principal = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("本金（元）") },
+                label = { Text(I18n.s("本金（元）", "Principal (CNY)")) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
@@ -236,32 +243,34 @@ fun DepositEditScreen(
             OutlinedTextField(
                 value = rate,
                 onValueChange = { rate = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text("年化利率（%）") },
-                placeholder = { Text("如：4 表示 4%") },
+                label = { Text(I18n.s("年化利率（%）", "Annual rate (%)")) },
+                placeholder = { Text(I18n.s("如：4 表示 4%", "e.g. 4 means 4%")) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            DateField("存入日期", startDate, Modifier.fillMaxWidth()) { showStartPicker = true }
+            DateField(I18n.s("存入日期", "Deposit date"), startDate, Modifier.fillMaxWidth()) { showStartPicker = true }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 DropdownField(
-                    label = "存期单位",
-                    value = termUnit,
-                    options = termUnits,
-                    placeholder = "请选择",
-                    onSelect = { termUnit = it },
+                    label = I18n.s("存期单位", "Term unit"),
+                    value = termUnits.first { it.code == termUnit }.display(),
+                    options = termUnits.map { it.display() },
+                    placeholder = I18n.s("请选择", "Select"),
+                    onSelect = { sel ->
+                        termUnit = termUnits.first { it.display() == sel }.code
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 OutlinedTextField(
                     value = termCountInput,
                     onValueChange = { termCountInput = it.filter { c -> c.isDigit() } },
-                    label = { Text("存期数值") },
-                    placeholder = { Text("如：12") },
+                    label = { Text(I18n.s("存期数值", "Term length")) },
+                    placeholder = { Text(I18n.s("如：12", "e.g. 12")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
@@ -271,7 +280,7 @@ fun DepositEditScreen(
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
                     Text(
-                        "到期日期（自动计算，不可手动修改）",
+                        I18n.s("到期日期（自动计算，不可手动修改）", "Maturity date (auto-calculated, not editable)"),
                         fontSize = MaterialTheme.typography.labelMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -281,7 +290,7 @@ fun DepositEditScreen(
             }
 
             Text(
-                "期限 ${days} 天 · 日利息约 ${FormatUtils.moneyPlain(daily)} 元",
+                I18n.s("期限 ${days} 天 · 日利息约 ${FormatUtils.moneyPlain(daily)} 元", "${days} days · est. daily interest ${FormatUtils.moneyPlain(daily)} CNY"),
                 fontSize = MaterialTheme.typography.labelMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -289,7 +298,7 @@ fun DepositEditScreen(
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("备注（可选）") },
+                label = { Text(I18n.s("备注（可选）", "Note (optional)")) },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -298,15 +307,15 @@ fun DepositEditScreen(
             Button(
                 onClick = {
                     val errors = mutableListOf<String>()
-                    if (accountName.trim().isBlank()) errors.add("请填写或选择银行名称")
+                    if (accountName.trim().isBlank()) errors.add(I18n.s("请填写或选择银行名称", "Select or enter a bank name"))
                     val p = parseAmountInput(principal)
-                    if (p == null || p <= 0.0) errors.add("本金必须大于 0，当前：$principal")
+                    if (p == null || p <= 0.0) errors.add(I18n.s("本金必须大于 0，当前：$principal", "Principal must be > 0, current: $principal"))
                     val r = parseRateInput(rate)
-                    if (r == null || r < 0.0) errors.add("年化利率无效，当前：$rate")
+                    if (r == null || r < 0.0) errors.add(I18n.s("年化利率无效，当前：$rate", "Invalid annual rate, current: $rate"))
                     val tc = termCountInput.trim().toLongOrNull()
-                    if (tc == null || tc <= 0L) errors.add("存期数值必须大于 0，当前：$termCountInput")
+                    if (tc == null || tc <= 0L) errors.add(I18n.s("存期数值必须大于 0，当前：$termCountInput", "Term length must be > 0, current: $termCountInput"))
                     val realDaysCalc = if (endDate.isBefore(startDate)) 0L else ChronoUnit.DAYS.between(startDate, endDate)
-                    if (realDaysCalc <= 0) errors.add("到期日期必须晚于存入日期（存入：$startDate，到期：$endDate）")
+                    if (realDaysCalc <= 0) errors.add(I18n.s("到期日期必须晚于存入日期（存入：$startDate，到期：$endDate）", "Maturity must be after start (start: $startDate, maturity: $endDate)"))
 
                     if (errors.isNotEmpty()) {
                         errorMsg = errors.joinToString("\n")
@@ -333,18 +342,18 @@ fun DepositEditScreen(
                     scope.launch {
                         try {
                             repository.save(record)
-                            android.widget.Toast.makeText(context, if (origin == null) "新增成功" else "修改成功", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(context, if (origin == null) I18n.s("新增成功", "Added") else I18n.s("修改成功", "Saved"), android.widget.Toast.LENGTH_SHORT).show()
                             onBack()
                         } catch (e: Exception) {
                             android.util.Log.d("DepositBook", "save failed id=${record.id}", e)
-                            android.widget.Toast.makeText(context, "保存失败：${e.message ?: e.javaClass.simpleName}", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(context, I18n.s("保存失败：${e.message ?: e.javaClass.simpleName}", "Save failed: ${e.message ?: e.javaClass.simpleName}"), android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 },
                 enabled = true,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("保存")
+                Text(I18n.s("保存", "Save"))
             }
         }
     }
@@ -359,10 +368,10 @@ fun DepositEditScreen(
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { startDate = DateUtils.toDate(it) }
                     showStartPicker = false
-                }) { Text("确定") }
+                }) { Text(I18n.s("确定", "OK")) }
             },
             dismissButton = {
-                TextButton(onClick = { showStartPicker = false }) { Text("取消") }
+                TextButton(onClick = { showStartPicker = false }) { Text(I18n.s("取消", "Cancel")) }
             },
         ) { DatePicker(state = state) }
     }
@@ -370,13 +379,18 @@ fun DepositEditScreen(
     errorMsg?.let { msg ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { errorMsg = null },
-            title = { Text("无法保存") },
+            title = { Text(I18n.s("无法保存", "Can't save")) },
             text = { Text(msg) },
             confirmButton = {
-                TextButton(onClick = { errorMsg = null }) { Text("知道了") }
+                TextButton(onClick = { errorMsg = null }) { Text(I18n.s("知道了", "Got it")) }
             },
         )
     }
+}
+
+/** 存期单位：内部固定代码 + 按语言显示 */
+private data class UnitOption(val code: String, val zh: String, val en: String) {
+    fun display(): String = com.pxy.depositbook.util.I18n.s(zh, en)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

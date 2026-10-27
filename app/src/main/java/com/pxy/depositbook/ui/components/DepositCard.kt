@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.components
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,9 +60,9 @@ fun DepositCard(
         else -> AccentLight
     }
     val statusText = when {
-        ui.expired -> "已到期"
-        ui.daysLeft == 0L -> "今天到期"
-        else -> "${ui.daysLeft} 天后到期"
+        ui.expired -> I18n.s("已到期", "Matured")
+        ui.daysLeft == 0L -> I18n.s("今天到期", "Matures today")
+        else -> I18n.s("${ui.daysLeft} 天后到期", "${ui.daysLeft} days to maturity")
     }
 
     Card(
@@ -105,7 +107,7 @@ fun DepositCard(
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "年化 ${FormatUtils.rate(d.annualRate)}",
+                    I18n.s("年化 ${FormatUtils.rate(d.annualRate)}", "Rate ${FormatUtils.rate(d.annualRate)}"),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 3.dp),
@@ -130,9 +132,9 @@ fun DepositCard(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                InfoCol("日利息", "+" + FormatUtils.moneyPlain(ui.dailyInterest), Accent)
-                InfoCol("已获利息", "+" + FormatUtils.moneyPlain(ui.interestEarned), Accent)
-                InfoCol("本金+利息", FormatUtils.moneyPlain(ui.valueNow), MaterialTheme.colorScheme.onSurface)
+                InfoCol(I18n.s("日利息", "Daily interest"), "+" + FormatUtils.moneyPlain(ui.dailyInterest), Accent)
+                InfoCol(I18n.s("已获利息", "Interest earned"), "+" + FormatUtils.moneyPlain(ui.interestEarned), Accent)
+                InfoCol(I18n.s("本金+利息", "Principal + interest"), FormatUtils.moneyPlain(ui.valueNow), MaterialTheme.colorScheme.onSurface)
             }
 
             Spacer(Modifier.height(8.dp))

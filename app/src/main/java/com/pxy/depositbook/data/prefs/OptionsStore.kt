@@ -53,6 +53,13 @@ class OptionsStore(context: Context) {
         prefs.edit().putBoolean("privacy_default", on).apply()
     }
 
+    /** 显示语言：zh / en（默认中文） */
+    fun language(): String = prefs.getString("language", "zh") ?: "zh"
+
+    fun setLanguage(tag: String) {
+        prefs.edit().putString("language", tag).apply()
+    }
+
     fun banks(): List<String> = read(KEY_BANKS, DEFAULT_BANKS)
 
     fun addBank(name: String) = add(KEY_BANKS, DEFAULT_BANKS, name)

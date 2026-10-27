@@ -20,6 +20,7 @@ import com.pxy.depositbook.MainActivity
 import com.pxy.depositbook.R
 import com.pxy.depositbook.data.db.AppDatabase
 import com.pxy.depositbook.util.DateUtils
+import com.pxy.depositbook.util.I18n
 import com.pxy.depositbook.util.InterestCalculator
 import java.util.concurrent.TimeUnit
 
@@ -73,9 +74,9 @@ class ReminderWorker(
             if (Build.VERSION.SDK_INT >= 26) {
                 val channel = NotificationChannel(
                     CHANNEL_ID,
-                    "存款到期提醒",
+                    I18n.s("存款到期提醒", "Maturity Reminders"),
                     NotificationManager.IMPORTANCE_DEFAULT
-                ).apply { description = "存款到期前 30 天提醒" }
+                ).apply { description = I18n.s("存款到期前 30 天提醒", "Notify 30 days before deposit maturity") }
                 nm.createNotificationChannel(channel)
             }
 
@@ -87,8 +88,11 @@ class ReminderWorker(
 
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("有 $count 笔存款将在 30 天内到期")
-                .setContentText("点击查看并安排续存或取出")
+                .setContentTitle(com.pxy.depositbook.util.I18n.s(
+                    "有 $count 笔存款将在 30 天内到期",
+                    "$count deposits mature within 30 days",
+                ))
+                .setContentText(com.pxy.depositbook.util.I18n.s("点击查看并安排续存或取出", "Tap to view and arrange rollover or withdrawal"))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pending)
                 .setAutoCancel(true)

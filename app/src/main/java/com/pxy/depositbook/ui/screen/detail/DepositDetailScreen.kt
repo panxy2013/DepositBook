@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.detail
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,18 +84,18 @@ fun DepositDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("存款详情") },
+                title = { Text(I18n.s("存款详情", "Deposit Details")) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, I18n.s("返回", "Back"))
                     }
                 },
                 actions = {
                     IconButton(onClick = { current?.let { onEdit(it.deposit.id) } }) {
-                        Icon(Icons.Outlined.Edit, "编辑")
+                        Icon(Icons.Outlined.Edit, I18n.s("编辑", "Edit"))
                     }
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Outlined.DeleteOutline, "删除", tint = Danger)
+                        Icon(Icons.Outlined.DeleteOutline, I18n.s("删除", "Delete"), tint = Danger)
                     }
                 },
             )
@@ -101,7 +103,7 @@ fun DepositDetailScreen(
     ) { padding ->
         if (current == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("加载中…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(I18n.s("加载中…", "Loading…"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             return@Scaffold
         }
@@ -131,24 +133,24 @@ fun DepositDetailScreen(
                     ) {
                         Text(d.accountName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         when {
-                            current.expired -> Pill("已到期", Color(0xFF6B7B8A), Color(0xFFE8EBEF))
-                            current.urgent -> Pill("${current.daysLeft}天后到期", Danger, DangerLight)
-                            current.expiringSoon -> Pill("${current.daysLeft}天后到期", Warning, WarningLight)
-                            else -> Pill("${current.daysLeft}天后到期", Accent, AccentLight)
+                            current.expired -> Pill(I18n.s("已到期", "Matured"), Color(0xFF6B7B8A), Color(0xFFE8EBEF))
+                            current.urgent -> Pill(I18n.s("${current.daysLeft}天后到期", "Due in ${current.daysLeft} days"), Danger, DangerLight)
+                            current.expiringSoon -> Pill(I18n.s("${current.daysLeft}天后到期", "Due in ${current.daysLeft} days"), Warning, WarningLight)
+                            else -> Pill(I18n.s("${current.daysLeft}天后到期", "Due in ${current.daysLeft} days"), Accent, AccentLight)
                         }
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text("本金", color = Color(0xFFB9C8D5), fontSize = 12.sp)
+                    Text(I18n.s("本金", "Principal"), color = Color(0xFFB9C8D5), fontSize = 12.sp)
                     Text(FormatUtils.money(d.principal), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(6.dp))
                     Row {
                         Text(
-                            "本金 + 利息 " + FormatUtils.money(current.valueNow),
+                            I18n.s("本金 + 利息 ", "Principal + interest ") + FormatUtils.money(current.valueNow),
                             color = Color(0xFFD5DEE6),
                             fontSize = 13.sp,
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text("年化 ${FormatUtils.rate(d.annualRate)}", color = Color(0xFF9DB0BF), fontSize = 13.sp)
+                        Text(I18n.s("年化 ${FormatUtils.rate(d.annualRate)}", "Rate ${FormatUtils.rate(d.annualRate)}"), color = Color(0xFF9DB0BF), fontSize = 13.sp)
                     }
                     Spacer(Modifier.height(14.dp))
                     LinearProgressIndicator(
@@ -162,37 +164,37 @@ fun DepositDetailScreen(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text("已存 ${current.daysPassed} 天", color = Color(0xFFB9C8D5), fontSize = 11.sp)
-                        Text("共 ${current.daysPassed + maxOf(current.daysLeft, 0)} 天", color = Color(0xFFB9C8D5), fontSize = 11.sp)
+                        Text(I18n.s("已存 ${current.daysPassed} 天", "${current.daysPassed} days held"), color = Color(0xFFB9C8D5), fontSize = 11.sp)
+                        Text(I18n.s("共 ${current.daysPassed + maxOf(current.daysLeft, 0)} 天", "${current.daysPassed + maxOf(current.daysLeft, 0)} days total"), color = Color(0xFFB9C8D5), fontSize = 11.sp)
                     }
                 }
             }
 
             // 收益明细
-            SectionCard("收益明细") {
-                DetailRow("日利息", "+" + FormatUtils.moneyPlain(current.dailyInterest), Accent)
-                DetailRow("累计已获利息", "+" + FormatUtils.moneyPlain(current.interestEarned), Accent)
-                DetailRow("当前本金+利息", FormatUtils.money(current.valueNow))
-                DetailRow("到期预估本息", FormatUtils.money(current.valueAtMaturity), Accent)
+            SectionCard(I18n.s("收益明细", "Earnings")) {
+                DetailRow(I18n.s("日利息", "Daily interest"), "+" + FormatUtils.moneyPlain(current.dailyInterest), Accent)
+                DetailRow(I18n.s("累计已获利息", "Interest earned"), "+" + FormatUtils.moneyPlain(current.interestEarned), Accent)
+                DetailRow(I18n.s("当前本金+利息", "Current P+I"), FormatUtils.money(current.valueNow))
+                DetailRow(I18n.s("到期预估本息", "Est. P+I at maturity"), FormatUtils.money(current.valueAtMaturity), Accent)
             }
 
             // 基本信息
-            SectionCard("基本信息") {
-                d.productName?.let { DetailRow("产品名称", it) }
-                DetailRow("年化利率", FormatUtils.rate(d.annualRate))
-                DetailRow("存入日期", FormatUtils.date(d.startDate))
-                DetailRow("到期日期", FormatUtils.date(d.endDate))
-                d.termDays?.let { DetailRow("期限", "$it 天") }
-                DetailRow("状态", if (d.isActive) "计息中" else "已结清")
-                d.note?.takeIf { it.isNotBlank() }?.let { DetailRow("备注", it) }
+            SectionCard(I18n.s("基本信息", "Details")) {
+                d.productName?.let { DetailRow(I18n.s("产品名称", "Product"), it) }
+                DetailRow(I18n.s("年化利率", "Annual rate"), FormatUtils.rate(d.annualRate))
+                DetailRow(I18n.s("存入日期", "Deposit date"), FormatUtils.date(d.startDate))
+                DetailRow(I18n.s("到期日期", "Maturity date"), FormatUtils.date(d.endDate))
+                d.termDays?.let { DetailRow(I18n.s("期限", "Term"), I18n.s("$it 天", "$it days")) }
+                DetailRow(I18n.s("状态", "Status"), if (d.isActive) I18n.s("计息中", "Earning interest") else I18n.s("已结清", "Settled"))
+                d.note?.takeIf { it.isNotBlank() }?.let { DetailRow(I18n.s("备注", "Note"), it) }
             }
 
             // 时间线
-            SectionCard("时间线") {
-                TimelineRow("存入", FormatUtils.date(d.startDate), false)
-                TimelineRow("今天", FormatUtils.date(System.currentTimeMillis()), true)
+            SectionCard(I18n.s("时间线", "Timeline")) {
+                TimelineRow(I18n.s("存入", "Deposited"), FormatUtils.date(d.startDate), false)
+                TimelineRow(I18n.s("今天", "Today"), FormatUtils.date(System.currentTimeMillis()), true)
                 TimelineRow(
-                    if (current.expired) "已到期" else "到期",
+                    if (current.expired) I18n.s("已到期", "Matured") else I18n.s("到期", "Maturity"),
                     FormatUtils.date(d.endDate),
                     !current.expired,
                 )
@@ -208,7 +210,7 @@ fun DepositDetailScreen(
                 }) {
                     Icon(Icons.Outlined.CheckCircle, null, tint = Accent)
                     Spacer(Modifier.width(6.dp))
-                    Text("标记为已结清", color = Accent)
+                    Text(I18n.s("标记为已结清", "Mark as settled"), color = Accent)
                 }
             }
         }
@@ -217,8 +219,8 @@ fun DepositDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("删除这条存款？") },
-            text = { Text("删除后不可恢复，操作会记录到日志中。") },
+            title = { Text(I18n.s("删除这条存款？", "Delete this deposit?")) },
+            text = { Text(I18n.s("删除后不可恢复，操作会记录到日志中。", "This cannot be undone; the action will be logged.")) },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
@@ -228,10 +230,10 @@ fun DepositDetailScreen(
                             onBack()
                         }
                     }
-                }) { Text("删除", color = Danger) }
+                }) { Text(I18n.s("删除", "Delete"), color = Danger) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("取消") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text(I18n.s("取消", "Cancel")) }
             },
         )
     }

@@ -2,6 +2,7 @@ package com.pxy.depositbook.data.model
 
 import com.pxy.depositbook.data.entity.AssetSnapshot
 import com.pxy.depositbook.data.entity.Deposit
+import com.pxy.depositbook.util.I18n
 import com.pxy.depositbook.util.DateUtils
 import com.pxy.depositbook.util.InterestCalculator
 import java.time.LocalDate
@@ -236,9 +237,14 @@ object StatsCalculator {
         if (monthly) {
             val spansYears = trimmed.any { it.date.year != today.year }
             return trimmed.map {
+                val label = when {
+                    spansYears && I18n.isZh -> "%02d年%d月".format(it.date.year % 100, it.date.monthValue)
+                    spansYears -> "%d/%d".format(it.date.year % 100, it.date.monthValue)
+                    I18n.isZh -> "%d月".format(it.date.monthValue)
+                    else -> "%d".format(it.date.monthValue)
+                }
                 TrendPoint(
-                    monthLabel = if (spansYears) "%02d年%d月".format(it.date.year % 100, it.date.monthValue)
-                    else "%d月".format(it.date.monthValue),
+                    monthLabel = label,
                     principal = it.principal,
                     interest = it.interest,
                 )
@@ -246,7 +252,7 @@ object StatsCalculator {
         }
         return trimmed.map {
             TrendPoint(
-                monthLabel = "%d年".format(it.date.year),
+                monthLabel = if (I18n.isZh) "%d年".format(it.date.year) else "%d".format(it.date.year),
                 principal = it.principal,
                 interest = it.interest,
             )

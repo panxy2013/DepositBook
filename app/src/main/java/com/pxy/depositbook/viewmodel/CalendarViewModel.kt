@@ -150,7 +150,10 @@ class CalendarViewModel(private val repo: DepositRepository) : ViewModel() {
             mode = CalendarMode.MONTH,
             anchor = anchor,
             cells = cells,
-            title = "${ym.year}年${ym.monthValue}月",
+            title = com.pxy.depositbook.util.I18n.s(
+                "${ym.year}年${ym.monthValue}月",
+                "${ym.year}-${ym.monthValue}",
+            ),
             selectedDate = selected,
             selectedItems = items,
         )
@@ -198,7 +201,10 @@ class CalendarViewModel(private val repo: DepositRepository) : ViewModel() {
             mode = CalendarMode.YEAR,
             anchor = anchor,
             cells = cells,
-            title = "${year}年 · $start–$end",
+            title = com.pxy.depositbook.util.I18n.s(
+                "${year}年 · $start–$end",
+                "$year · $start–$end",
+            ),
             selectedDate = selected,
             selectedItems = items,
         )

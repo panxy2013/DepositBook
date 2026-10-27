@@ -5,6 +5,7 @@ import com.pxy.depositbook.data.db.AppDatabase
 import com.pxy.depositbook.data.prefs.OptionsStore
 import com.pxy.depositbook.data.prefs.SecurityStore
 import com.pxy.depositbook.data.repo.DepositRepository
+import com.pxy.depositbook.util.I18n
 import com.pxy.depositbook.worker.ReminderScheduler
 
 class DepositApp : Application() {
@@ -18,6 +19,8 @@ class DepositApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 读取已保存的显示语言（默认中文）
+        I18n.init(options.language()) { options.setLanguage(it) }
         ReminderScheduler.schedule(this)
     }
 }

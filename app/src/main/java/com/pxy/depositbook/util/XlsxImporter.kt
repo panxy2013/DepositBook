@@ -18,12 +18,12 @@ import javax.xml.parsers.DocumentBuilderFactory
 object XlsxImporter {
 
     private val HEADER_ALIASES = mapOf(
-        "account" to listOf("理财账户", "账户"),
-        "principal" to listOf("本金"),
-        "product" to listOf("产品名称", "产品"),
-        "rate" to listOf("预期年化利率", "年化利率", "年化"),
-        "end" to listOf("到期日", "到期日期"),
-        "start" to listOf("存入时间", "存入日期", "起息日"),
+        "account" to listOf("理财账户", "账户", "Account"),
+        "principal" to listOf("本金", "Principal"),
+        "product" to listOf("产品名称", "产品", "Product"),
+        "rate" to listOf("预期年化利率", "年化利率", "年化", "Annual Rate", "Rate", "Interest Rate"),
+        "end" to listOf("到期日", "到期日期", "Maturity", "Maturity Date"),
+        "start" to listOf("存入时间", "存入日期", "起息日", "Deposit Date", "Start Date", "Start"),
     )
 
     data class ImportResult(
@@ -53,9 +53,9 @@ object XlsxImporter {
             }
         }
 
-        // 优先取名为「总账」的 sheet，否则取第一个
+        // 优先取名为「总账 / General Ledger」的 sheet，否则取第一个
         val targetEntry = if (workbookSheetOrder.isNotEmpty()) {
-            val idx = workbookSheetOrder.indexOfFirst { it.contains("总账") }
+            val idx = workbookSheetOrder.indexOfFirst { it.contains("总账") || it.equals("General Ledger", ignoreCase = true) }
             val name = if (idx >= 0) "xl/worksheets/sheet${idx + 1}.xml" else "xl/worksheets/sheet1.xml"
             name
         } else "xl/worksheets/sheet1.xml"
@@ -66,7 +66,7 @@ object XlsxImporter {
         val rows = parseSheetRows(xml, shared)
         if (rows.isEmpty()) return ImportResult(emptyList(), 0, "")
 
-        val headerIndex = rows.indexOfFirst { row -> row.any { it.contains("本金") } }
+        val headerIndex = rows.indexOfFirst { row -> row.any { it.contains("本金") || it.contains("Principal", ignoreCase = true) } }
         if (headerIndex < 0) return ImportResult(emptyList(), rows.size, "")
 
         val header = rows[headerIndex]
@@ -88,7 +88,7 @@ object XlsxImporter {
         rows.drop(headerIndex + 1).forEach { row ->
             fun cell(key: String): String? = colMap[key]?.let { row.getOrNull(it) }?.takeIf { it.isNotBlank() }
 
-            val account = cell("account")?.takeIf { !it.contains("累计") }?.takeIf { !it.contains("余额") }
+            val account = cell("account")?.takeIf { !it.contains("累计") && !it.contains("Balance", ignoreCase = true) && !it.contains("Total", ignoreCase = true) && !it.contains("余额") }
             val principal = cell("principal")?.toDoubleOrNull()
             if (account == null || principal == null || principal <= 0) {
                 if (row.any { it.isNotBlank() }) skipped++

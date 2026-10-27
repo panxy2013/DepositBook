@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.lock
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -67,10 +69,10 @@ private fun LockContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(120.dp))
-            Text("应用锁已开启，但尚未设置任何密码", style = MaterialTheme.typography.titleMedium)
+            Text(I18n.s("应用锁已开启，但尚未设置任何密码", "App lock is on, but no PIN or pattern is set"), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
-            Text("请解锁后到 设置 → 安全 重新配置", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onUnlocked) { Text("本次临时解锁") }
+            Text(I18n.s("请解锁后到 设置 → 安全 重新配置", "Unlock, then configure it in Settings → Security"), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = onUnlocked) { Text(I18n.s("本次临时解锁", "Temporarily unlocked this time")) }
         }
         return
     }
@@ -80,7 +82,7 @@ private fun LockContent(
         if (current == "pin") {
             PinLock(
                 modifier = Modifier.weight(1f),
-                title = "请输入数字密码",
+                title = I18n.s("请输入数字密码", "Enter your PIN"),
                 subtitle = subtitleText(methods.size),
                 onVerify = { it == savedPin },
                 onSuccess = { onUnlocked() },
@@ -88,7 +90,7 @@ private fun LockContent(
         } else {
             PatternLock(
                 modifier = Modifier.weight(1f),
-                title = "请绘制手势密码",
+                title = I18n.s("请绘制手势密码", "Draw your pattern"),
                 subtitle = subtitleText(methods.size),
                 onVerify = { it == savedPattern },
                 onSuccess = { onUnlocked() },
@@ -99,7 +101,7 @@ private fun LockContent(
             TextButton(
                 onClick = { current = if (current == "pin") "pattern" else "pin" },
             ) {
-                Text(if (current == "pin") "使用手势密码解锁" else "使用数字密码解锁")
+                Text(if (current == "pin") I18n.s("使用手势密码解锁", "Unlock with pattern") else I18n.s("使用数字密码解锁", "Unlock with PIN"))
             }
         }
         Spacer(Modifier.weight(0.1f))
@@ -107,4 +109,4 @@ private fun LockContent(
 }
 
 private fun subtitleText(methodCount: Int): String =
-    if (methodCount >= 2) "也可在下方切换验证方式" else ""
+    if (methodCount >= 2) I18n.s("也可在下方切换验证方式", "You can switch the method below") else ""

@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.navigation
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -53,14 +55,17 @@ object Routes {
     fun homeDetail(type: String) = "homeDetail/$type"
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, val labelZh: String, val labelEn: String, val icon: ImageVector)
 
 private val tabs = listOf(
-    Tab(Routes.HOME, "总览", Icons.Outlined.Home),
-    Tab(Routes.STATS, "统计", Icons.Outlined.BarChart),
-    Tab(Routes.LOG, "日志", Icons.Outlined.History),
-    Tab(Routes.SETTINGS, "设置", Icons.Outlined.Settings),
+    Tab(Routes.HOME, "总览", "Home", Icons.Outlined.Home),
+    Tab(Routes.STATS, "统计", "Stats", Icons.Outlined.BarChart),
+    Tab(Routes.LOG, "日志", "Log", Icons.Outlined.History),
+    Tab(Routes.SETTINGS, "设置", "Settings", Icons.Outlined.Settings),
 )
+
+@Composable
+private fun Tab.label(): String = com.pxy.depositbook.util.I18n.s(labelZh, labelEn)
 
 @Composable
 fun AppNavHost(repository: DepositRepository) {
@@ -86,8 +91,8 @@ fun AppNavHost(repository: DepositRepository) {
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, tab.label) },
-                            label = { Text(tab.label) },
+                            icon = { Icon(tab.icon, tab.label()) },
+                            label = { Text(tab.label()) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,

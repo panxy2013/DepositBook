@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.components
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -28,7 +30,7 @@ fun DropdownField(
     label: String,
     value: String,
     options: List<String>,
-    placeholder: String = "请选择",
+    placeholder: String = I18n.s("请选择", "Select"),
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -56,7 +58,7 @@ fun DropdownField(
         ) {
             if (options.isEmpty()) {
                 DropdownMenuItem(
-                    text = { Text("暂无选项，请到「设置」里添加") },
+                    text = { Text(I18n.s("暂无选项，请到「设置」里添加", "No options yet; add them in Settings")) },
                     onClick = { expanded = false },
                 )
             }

@@ -1,10 +1,12 @@
 package com.pxy.depositbook
 
+import com.pxy.depositbook.util.I18n
+
 import android.util.Log
 
 /**
  * 应用锁挂起管理：
- * 发起系统文件选择器、系统分享等"短暂离开应用"的操作前调用 [suspend()]，
+ * 发起系统文件选择器、系统分享等I18n.s("短暂离开应用", "Briefly left the app")的操作前调用 [suspend()]，
  * 期间应用退后台不触发锁屏；拿到结果返回后由 MainActivity 清除标记。
  *
  * 安全性：挂起有时限，超时后视为用户真正离开，返回仍会要求解锁，

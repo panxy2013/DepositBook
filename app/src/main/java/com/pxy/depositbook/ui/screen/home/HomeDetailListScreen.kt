@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.home
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,35 +57,35 @@ fun HomeDetailListScreen(
         HomeDetailType.TODAY_INTEREST -> {
             deposits.filter { it.isActive }.map { d ->
                 val daily = InterestCalculator.dailyInterest(d.principal, d.annualRate)
-                Triple(d, daily, "今日新增利息 ${FormatUtils.money(daily)}")
+                Triple(d, daily, I18n.s("今日新增利息 ${FormatUtils.money(daily)}", "Interest today ${FormatUtils.money(daily)}"))
             }.filter { it.second > 0 }.sortedByDescending { it.second }
         }
         HomeDetailType.TOTAL_INTEREST -> {
             deposits.filter { it.isActive }.map { d ->
                 val earned = InterestCalculator.interestEarned(d, today)
-                Triple(d, earned, "累计已获利息 ${FormatUtils.money(earned)}")
+                Triple(d, earned, I18n.s("累计已获利息 ${FormatUtils.money(earned)}", "Interest earned ${FormatUtils.money(earned)}"))
             }.sortedByDescending { it.second }
         }
         HomeDetailType.EXPIRING_SOON -> {
             deposits.filter { it.isActive }.map { d ->
                 val left = ((d.endDate - nowMs) / dayMs).toLong()
-                Triple(d, left.toDouble(), "剩余 $left 天 · 到期 ${FormatUtils.date(d.endDate)}")
+                Triple(d, left.toDouble(), I18n.s("剩余 $left 天 · 到期 ${FormatUtils.date(d.endDate)}", "$left days left · matures ${FormatUtils.date(d.endDate)}"))
             }.filter { it.second >= 0 && it.second <= 30 }
                 .sortedBy { it.second } // 30天内到期，以最近到期排序
         }
         HomeDetailType.MATURITY_TOTAL -> {
             deposits.filter { it.isActive }.map { d ->
                 val value = InterestCalculator.valueAtMaturity(d)
-                Triple(d, value, "到期预估本息 ${FormatUtils.money(value)}")
+                Triple(d, value, I18n.s("到期预估本息 ${FormatUtils.money(value)}", "Est. P+I ${FormatUtils.money(value)}"))
             }.sortedByDescending { it.second }
         }
     }
 
     val title = when (type) {
-        HomeDetailType.TODAY_INTEREST -> "今日新增利息明细"
-        HomeDetailType.TOTAL_INTEREST -> "累计已获利息明细"
-        HomeDetailType.EXPIRING_SOON -> "30天内到期明细"
-        HomeDetailType.MATURITY_TOTAL -> "到期预估总额明细"
+        HomeDetailType.TODAY_INTEREST -> I18n.s("今日新增利息明细", "Interest Earned Today")
+        HomeDetailType.TOTAL_INTEREST -> I18n.s("累计已获利息明细", "Total Interest Earned")
+        HomeDetailType.EXPIRING_SOON -> I18n.s("30天内到期明细", "Due in 30 Days")
+        HomeDetailType.MATURITY_TOTAL -> I18n.s("到期预估总额明细", "Est. Total at Maturity")
     }
 
     Scaffold(
@@ -92,7 +94,7 @@ fun HomeDetailListScreen(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = I18n.s("返回", "Back"))
                     }
                 },
             )
@@ -105,9 +107,9 @@ fun HomeDetailListScreen(
         ) {
             item {
                 val sumText = if (type == HomeDetailType.EXPIRING_SOON) {
-                    "共 ${items.size} 笔"
+                    I18n.s("共 ${items.size} 笔", "${items.size} items")
                 } else {
-                    "共 ${items.size} 笔 · 合计 ${FormatUtils.money(items.sumOf { it.second })}"
+                    I18n.s("共 ${items.size} 笔 · 合计 ${FormatUtils.money(items.sumOf { it.second })}", "${items.size} items · total ${FormatUtils.money(items.sumOf { it.second })}")
                 }
                 Text(
                     sumText,
@@ -118,7 +120,7 @@ fun HomeDetailListScreen(
             }
             if (items.isEmpty()) {
                 item {
-                    Text("暂无数据", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(I18n.s("暂无数据", "No data"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             items(items, key = { it.first.id }) { item ->
@@ -127,7 +129,7 @@ fun HomeDetailListScreen(
                 val valStr = when (type) {
                     HomeDetailType.EXPIRING_SOON -> {
                         val left = ((d.endDate - nowMs) / dayMs).toLong()
-                        if (left >= 0) "剩余 $left 天" else "已到期"
+                        if (left >= 0) I18n.s("剩余 $left 天", "$left days left") else I18n.s("已到期", "Matured")
                     }
                     HomeDetailType.TODAY_INTEREST -> "+" + FormatUtils.moneyCompact(item.second)
                     HomeDetailType.TOTAL_INTEREST -> "+" + FormatUtils.moneyCompact(item.second)

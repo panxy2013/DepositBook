@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.stats
 
+import com.pxy.depositbook.util.I18n
+
 import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -77,10 +79,10 @@ fun StatsScreen(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("统计分析", style = MaterialTheme.typography.headlineSmall)
+                    Text(I18n.s("统计分析", "Statistics"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "共 ${state.summary.activeCount} 笔在存 · 本金 ${FormatUtils.money(state.summary.totalPrincipal)}",
+                        I18n.s("共 ${state.summary.activeCount} 笔在存 · 本金 ${FormatUtils.money(state.summary.totalPrincipal)}", "${state.summary.activeCount} active · principal ${FormatUtils.money(state.summary.totalPrincipal)}"),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -88,7 +90,7 @@ fun StatsScreen(
                 TextButton(onClick = { Log.d("DepositBook", "StatsScreen: click calendar"); onOpenCalendar() }) {
                     Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
-                    Text("日历")
+                    Text(I18n.s("日历", "Calendar"))
                 }
             }
         }
@@ -102,9 +104,9 @@ fun StatsScreen(
         }
 
         item {
-            SectionCard("资产分布（按账户）") {
+            SectionCard(I18n.s("资产分布（按账户）", "Asset Mix (by account)")) {
                 if (state.groups.isEmpty()) {
-                    EmptyHint("暂无数据")
+                    EmptyHint(I18n.s("暂无数据", "No data"))
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         DonutChart(
@@ -124,23 +126,23 @@ fun StatsScreen(
 
         item {
             var trendMode by remember { mutableStateOf("month") }
-            SectionCard("本金趋势") {
+            SectionCard(I18n.s("本金趋势", "Principal Trend")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = trendMode == "month",
                         onClick = { trendMode = "month" },
-                        label = { Text("按月") },
+                        label = { Text(I18n.s("按月", "Monthly")) },
                     )
                     FilterChip(
                         selected = trendMode == "year",
                         onClick = { trendMode = "year" },
-                        label = { Text("按年") },
+                        label = { Text(I18n.s("按年", "Yearly")) },
                     )
                 }
                 Spacer(Modifier.height(10.dp))
                 val points = if (trendMode == "month") state.monthTrend else state.yearTrend
                 if (points.isEmpty()) {
-                    EmptyHint("暂无数据")
+                    EmptyHint(I18n.s("暂无数据", "No data"))
                 } else {
                     TrendLineChart(points)
                 }
@@ -148,9 +150,9 @@ fun StatsScreen(
         }
 
         item {
-            SectionCard("历史资产记录（每日快照）") {
+            SectionCard(I18n.s("历史资产记录（每日快照）", "Asset History (daily snapshots)")) {
                 if (state.history.isEmpty()) {
-                    EmptyHint("暂无记录，每天会自动记录一次")
+                    EmptyHint(I18n.s("暂无记录，每天会自动记录一次", "No records yet; one snapshot is recorded daily"))
                 } else {
                     // 按月归并：每月取最后一天的快照，倒序展示
                     val monthly = state.history
@@ -164,18 +166,18 @@ fun StatsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    "${s.day.take(4)}年${s.day.take(7).takeLast(2)}月",
+                                    I18n.s("${s.day.take(4)}年${s.day.take(7).takeLast(2)}月", "${s.day.take(7)}"),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.width(78.dp),
                                 )
                                 Column(Modifier.weight(1f)) {
                                     Text(
-                                        "本金 ${FormatUtils.moneyPlain(s.totalPrincipal)} · 本息 ${FormatUtils.moneyPlain(s.totalValue)}",
+                                        I18n.s("本金 ${FormatUtils.moneyPlain(s.totalPrincipal)} · 本息 ${FormatUtils.moneyPlain(s.totalValue)}", "Principal ${FormatUtils.moneyPlain(s.totalPrincipal)} · P+I ${FormatUtils.moneyPlain(s.totalValue)}"),
                                         fontSize = 12.sp,
                                     )
                                     Text(
-                                        "已获利息 +${FormatUtils.moneyPlain(s.totalInterest)} · 在存 ${s.activeCount} 笔",
+                                        I18n.s("已获利息 +${FormatUtils.moneyPlain(s.totalInterest)} · 在存 ${s.activeCount} 笔", "Interest +${FormatUtils.moneyPlain(s.totalInterest)} · ${s.activeCount} active"),
                                         fontSize = 10.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -183,7 +185,7 @@ fun StatsScreen(
                             }
                         }
                         Text(
-                            "快照为历史数据，之后删除/结清存单不会改变已有记录；清空所有数据才会删除",
+                            I18n.s("快照为历史数据，之后删除/结清存单不会改变已有记录；清空所有数据才会删除", "Snapshots are immutable history: deleting or settling deposits won't change them; only Clear All Data removes them"),
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 2.dp),
@@ -194,9 +196,9 @@ fun StatsScreen(
         }
 
         item {
-            SectionCard("账户明细（点击可查看明细）") {
+            SectionCard(I18n.s("账户明细（点击可查看明细）", "Account Details (tap to view)")) {
                 if (state.groups.isEmpty()) {
-                    EmptyHint("暂无数据")
+                    EmptyHint(I18n.s("暂无数据", "No data"))
                 } else {
                     state.groups.forEachIndexed { i, g ->
                         Row(
@@ -216,7 +218,7 @@ fun StatsScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(g.name, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                                 Text(
-                                    "本金 ${FormatUtils.moneyPlain(g.principal)}",
+                                    I18n.s("本金 ${FormatUtils.moneyPlain(g.principal)}", "Principal ${FormatUtils.moneyPlain(g.principal)}"),
                                     fontSize = 11.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -253,9 +255,9 @@ private fun SummaryStrip(principal: Double, interest: Double, valueNow: Double) 
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(Modifier.padding(16.dp)) {
-            StripItem("本金总额", FormatUtils.moneyCompact(principal), Modifier.weight(1f))
-            StripItem("累计利息", "+" + FormatUtils.moneyCompact(interest), Modifier.weight(1f), Accent)
-            StripItem("本息合计", FormatUtils.moneyCompact(valueNow), Modifier.weight(1f))
+            StripItem(I18n.s("本金总额", "Total principal"), FormatUtils.moneyCompact(principal), Modifier.weight(1f))
+            StripItem(I18n.s("累计利息", "Interest earned"), "+" + FormatUtils.moneyCompact(interest), Modifier.weight(1f), Accent)
+            StripItem(I18n.s("本息合计", "P + I total"), FormatUtils.moneyCompact(valueNow), Modifier.weight(1f))
         }
     }
 }

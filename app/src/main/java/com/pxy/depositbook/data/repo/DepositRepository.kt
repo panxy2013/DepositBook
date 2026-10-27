@@ -1,5 +1,7 @@
 package com.pxy.depositbook.data.repo
 
+import com.pxy.depositbook.util.I18n
+
 import com.pxy.depositbook.data.dao.AssetSnapshotDao
 import com.pxy.depositbook.data.dao.DepositDao
 import com.pxy.depositbook.data.dao.OperationLogDao
@@ -60,7 +62,7 @@ class DepositRepository(
         logDao.insert(
             OperationLog(
                 action = "RENAME",
-                content = "银行「$oldName」重命名为「$newName」，已同步 $rows 条存款记录",
+                content = I18n.s("银行「$oldName」重命名为「$newName」，已同步 $rows 条存款记录", "Renamed “$oldName” to “$newName”; updated $rows deposits"),
             )
         )
         return rows
@@ -105,17 +107,19 @@ class DepositRepository(
         depositDao.getAllOnce().forEach { delete(it) }
         logDao.clear()
         snapshotDao.clearAll()
-        addLog("CLEAR", "已清空全部数据（含历史资产快照）")
+        addLog("CLEAR", I18n.s("已清空全部数据（含历史资产快照）", "All data cleared (including snapshot history)"))
     }
 
     private suspend fun log(deposit: Deposit, action: String) {
         val text = when (action) {
-            "CREATE" -> "新增 ${deposit.accountName}${deposit.productName?.let { "·$it" } ?: ""} " +
-                    "本金 ${FormatUtils.moneyPlain(deposit.principal)}，年化 ${FormatUtils.rate(deposit.annualRate)}"
-            "UPDATE" -> "修改 ${deposit.accountName} " +
-                    "本金 ${FormatUtils.moneyPlain(deposit.principal)}，年化 ${FormatUtils.rate(deposit.annualRate)}"
-            "DELETE" -> "删除 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}"
-            "SETTLE" -> "结清 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}"
+            "CREATE" -> I18n.s(
+                "新增 ${deposit.accountName}${deposit.productName?.let { "·$it" } ?: ""} 本金 ${FormatUtils.moneyPlain(deposit.principal)}，年化 ${FormatUtils.rate(deposit.annualRate)}",
+                "Added ${deposit.accountName}${deposit.productName?.let { "·$it" } ?: ""} principal ${FormatUtils.moneyPlain(deposit.principal)}, rate ${FormatUtils.rate(deposit.annualRate)}",
+            )
+            "UPDATE" -> I18n.s("修改 ${deposit.accountName} ", "Updated ${deposit.accountName} ") +
+                    I18n.s("本金 ${FormatUtils.moneyPlain(deposit.principal)}，年化 ${FormatUtils.rate(deposit.annualRate)}", "principal ${FormatUtils.moneyPlain(deposit.principal)}, rate ${FormatUtils.rate(deposit.annualRate)}")
+            "DELETE" -> I18n.s("删除 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}", "Deleted ${deposit.accountName}, principal ${FormatUtils.moneyPlain(deposit.principal)}")
+            "SETTLE" -> I18n.s("结清 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}", "Settled ${deposit.accountName}, principal ${FormatUtils.moneyPlain(deposit.principal)}")
             else -> "$action ${deposit.accountName}"
         }
         logDao.insert(

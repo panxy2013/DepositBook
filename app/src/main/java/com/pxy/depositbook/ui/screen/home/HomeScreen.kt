@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.home
 
+import com.pxy.depositbook.util.I18n
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,7 +67,7 @@ fun HomeScreen(
 ) {
     val vm: HomeViewModel = viewModel(factory = AppViewModelFactory.provide(repository))
     val state by vm.state.collectAsStateWithLifecycle()
-    val today = remember { LocalDate.now().format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA)) }
+    val today = remember { LocalDate.now().format(DateTimeFormatter.ofPattern(I18n.s("M月d日 EEEE", "MMM d, EEEE"), Locale.CHINA)) }
 
     val context = LocalContext.current
     val options = remember { (context.applicationContext as DepositApp).options }
@@ -77,7 +79,7 @@ fun HomeScreen(
             ExtendedFloatingActionButton(
                 onClick = onAddDeposit,
                 icon = { Icon(Icons.Outlined.Add, null) },
-                text = { Text("新增存款") },
+                text = { Text(I18n.s("新增存款", "Add deposit")) },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             )
@@ -96,7 +98,7 @@ fun HomeScreen(
                     Column(Modifier.weight(1f)) {
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "存款总览",
+                            I18n.s("存款总览", "Deposit Overview"),
                             style = MaterialTheme.typography.headlineSmall,
                         )
                         Text(
@@ -109,7 +111,7 @@ fun HomeScreen(
                     IconButton(onClick = { privacy = !privacy }) {
                         Icon(
                             imageVector = if (privacy) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                            contentDescription = if (privacy) "显示金额" else "隐藏金额",
+                            contentDescription = if (privacy) I18n.s("显示金额", "Show amounts") else I18n.s("隐藏金额", "Hide amounts"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -118,12 +120,12 @@ fun HomeScreen(
 
             item {
                 HeroStatCard(
-                    title = "当前本金总数（${state.summary.activeCount} 笔在存）",
+                    title = I18n.s("当前本金总数（${state.summary.activeCount} 笔在存）", "Total principal (${state.summary.activeCount} active)"),
                     value = if (privacy) HIDDEN else FormatUtils.money(state.summary.totalPrincipal),
                     subtitle = if (privacy) {
-                        "截止今日 本金+利息 $HIDDEN"
+                        I18n.s("截止今日 本金+利息 $HIDDEN", "Principal + interest to date $HIDDEN")
                     } else {
-                        "截止今日 本金+利息 " + FormatUtils.money(state.summary.totalValueNow)
+                        I18n.s("截止今日 本金+利息 ", "Principal + interest to date ") + FormatUtils.money(state.summary.totalValueNow)
                     },
                 )
             }
@@ -131,7 +133,7 @@ fun HomeScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiniStat(
-                        label = "今日新增利息",
+                        label = I18n.s("今日新增利息", "Interest today"),
                         value = if (privacy) HIDDEN else "+" + FormatUtils.moneyPlain(state.summary.todayInterest),
                         valueColor = Accent,
                         icon = { Icon(Icons.Outlined.TrendingUp, null, modifier = Modifier.height(14.dp), tint = Accent) },
@@ -139,7 +141,7 @@ fun HomeScreen(
                         onClick = { onOpenHomeDetail("TODAY_INTEREST") },
                     )
                     MiniStat(
-                        label = "累计已获利息",
+                        label = I18n.s("累计已获利息", "Interest earned"),
                         value = if (privacy) HIDDEN else "+" + FormatUtils.moneyPlain(state.summary.totalInterestEarned),
                         valueColor = Accent,
                         icon = { Icon(Icons.Outlined.Savings, null, modifier = Modifier.height(14.dp), tint = Accent) },
@@ -152,15 +154,15 @@ fun HomeScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiniStat(
-                        label = "30天内到期",
-                        value = "${state.summary.expiringSoonCount} 笔",
+                        label = I18n.s("30天内到期", "Due in 30 days"),
+                        value = I18n.s("${state.summary.expiringSoonCount} 笔", "${state.summary.expiringSoonCount} items"),
                         valueColor = Warning,
                         icon = { Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.height(14.dp), tint = Warning) },
                         modifier = Modifier.weight(1f),
                         onClick = { onOpenHomeDetail("EXPIRING_SOON") },
                     )
                     MiniStat(
-                        label = "到期预估总额",
+                        label = I18n.s("到期预估总额", "Est. total at maturity"),
                         value = if (privacy) HIDDEN else FormatUtils.moneyCompact(state.summary.totalValueAtMaturity),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpenHomeDetail("MATURITY_TOTAL") },
@@ -171,7 +173,7 @@ fun HomeScreen(
             if (state.expiringSoon.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(4.dp))
-                    SectionHeader("即将到期提醒")
+                    SectionHeader(I18n.s("即将到期提醒", "Expiring soon"))
                 }
                 items(state.expiringSoon, key = { it.deposit.id }) { ui ->
                     DepositCard(ui = ui, onClick = { onOpenDeposit(ui.deposit.id) })
@@ -180,7 +182,7 @@ fun HomeScreen(
 
             item {
                 Spacer(Modifier.height(4.dp))
-                SectionHeader("全部存款（${state.deposits.size} 笔）")
+                SectionHeader(I18n.s("全部存款（${state.deposits.size} 笔）", "All deposits (${state.deposits.size})"))
             }
 
             if (state.deposits.isEmpty() && !state.loading) {
@@ -191,10 +193,10 @@ fun HomeScreen(
                             .padding(vertical = 40.dp),
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                     ) {
-                        Text("还没有存款记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(I18n.s("还没有存款记录", "No deposits yet"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "点击右下角「新增存款」开始记录",
+                            I18n.s("点击右下角「新增存款」开始记录", "Tap \"Add deposit\" at bottom-right to start"),
                             fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pxy.depositbook.data.repo.DepositRepository
 import com.pxy.depositbook.util.FormatUtils
+import com.pxy.depositbook.util.I18n
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +52,7 @@ fun BankDepositListScreen(
                 title = { Text(bankName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = I18n.s("返回", "Back"))
                     }
                 },
             )
@@ -66,7 +67,7 @@ fun BankDepositListScreen(
         ) {
             item {
                 Text(
-                    "共 ${filtered.size} 笔在存 · 本金 ${FormatUtils.money(filtered.sumOf { it.principal })}",
+                    I18n.s("共 ${filtered.size} 笔在存 · 本金 ${FormatUtils.money(filtered.sumOf { it.principal })}", "${filtered.size} active · principal ${FormatUtils.money(filtered.sumOf { it.principal })}"),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -74,7 +75,7 @@ fun BankDepositListScreen(
             }
             if (filtered.isEmpty()) {
                 item {
-                    Text("暂无在存记录", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(I18n.s("暂无在存记录", "No active deposits"), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             items(filtered, key = { it.id }) { deposit ->
@@ -90,7 +91,7 @@ fun BankDepositListScreen(
                             Text(deposit.productName ?: "-", fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                "到期 ${FormatUtils.date(deposit.endDate)} · 年化 ${String.format("%.2f%%", deposit.annualRate * 100)}",
+                                I18n.s("到期 ${FormatUtils.date(deposit.endDate)} · 年化 ${String.format("%.2f%%", deposit.annualRate * 100)}", "Matures ${FormatUtils.date(deposit.endDate)} · rate ${String.format("%.2f%%", deposit.annualRate * 100)}"),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -98,7 +99,7 @@ fun BankDepositListScreen(
                         Column(horizontalAlignment = Alignment.End) {
                             Text(FormatUtils.moneyCompact(deposit.principal), fontWeight = FontWeight.SemiBold)
                             Text(
-                                if (daysLeft >= 0) "剩余 ${daysLeft} 天" else "已到期",
+                                if (daysLeft >= 0) I18n.s("剩余 ${daysLeft} 天", "${daysLeft} days left") else I18n.s("已到期", "Matured"),
                                 fontSize = 11.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.settings
 
+import com.pxy.depositbook.util.I18n
+
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -139,18 +141,18 @@ fun SettingsScreen(repository: DepositRepository) {
             importing = false
             if (result == null || result.deposits.isEmpty()) {
                 showStatus(if (kind == "json") {
-                    "导入失败：JSON 格式不正确或没有数据"
+                    I18n.s("导入失败：JSON 格式不正确或没有数据", "Import failed: invalid JSON or no data")
                 } else {
-                    "导入失败：未识别到「总账」表头或数据"
+                    I18n.s("导入失败：未识别到「总账」表头或数据", "Import failed: “General Ledger” header not recognized")
                 })
             } else {
                 result.deposits.forEach { repository.save(it) }
                 repository.addLog(
                     "IMPORT",
-                    "从 ${result.source} 导入 ${result.deposits.size} 笔存款" +
-                            if (result.skipped > 0) "，跳过 ${result.skipped} 条" else ""
+                    I18n.s("从 ${result.source} 导入 ${result.deposits.size} 笔存款", "Imported ${result.deposits.size} deposits from ${result.source}") +
+                            if (result.skipped > 0) I18n.s("，跳过 ${result.skipped} 条", ", skipped ${result.skipped} rows") else ""
                 )
-                showStatus("从 ${result.source} 成功导入 ${result.deposits.size} 笔存款")
+                showStatus(I18n.s("从 ${result.source} 成功导入 ${result.deposits.size} 笔存款", "Imported ${result.deposits.size} deposits from ${result.source}"))
             }
         }
     }
@@ -174,14 +176,37 @@ fun SettingsScreen(repository: DepositRepository) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("设置", style = MaterialTheme.typography.headlineSmall)
+        Text(I18n.s("设置", "Settings"), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(4.dp))
 
-        SettingsGroup("导入") {
+        SettingsGroup(I18n.s("语言 Language", "Language 语言")) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(I18n.s("显示语言", "Display language"))
+                        Text(
+                            I18n.s("中英文可随时切换，界面立即生效", "Switch anytime; applies instantly"),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row {
+                        TextButton(onClick = { I18n.switchTo(I18n.ZH); message = I18n.s("已切换为中文", "Switched to Chinese") }) {
+                            Text(if (I18n.isZh) "● 中文" else "中文")
+                        }
+                        TextButton(onClick = { I18n.switchTo(I18n.EN); message = I18n.s("已切换为英文", "Switched to English") }) {
+                            Text(if (!I18n.isZh) "● English" else "English")
+                        }
+                    }
+                }
+            }
+        }
+
+        SettingsGroup(I18n.s("导入", "Import")) {
             SettingsItem(
                 icon = { Icon(Icons.Outlined.UploadFile, null) },
-                title = "从 Excel 导入",
-                subtitle = "选择账本 .xlsx，读取「总账」sheet",
+                title = I18n.s("从 Excel 导入", "Import from Excel"),
+                subtitle = I18n.s("选择账本 .xlsx，读取「总账」sheet", "Pick a .xlsx and read the “General Ledger” sheet"),
                 onClick = {
                     LockManager.suspend()
                     xlsxPicker.launch(
@@ -195,8 +220,8 @@ fun SettingsScreen(repository: DepositRepository) {
             )
             SettingsItem(
                 icon = { Icon(Icons.Outlined.UploadFile, null) },
-                title = "从 JSON 导入",
-                subtitle = "恢复本 App 导出的备份文件",
+                title = I18n.s("从 JSON 导入", "Import from JSON"),
+                subtitle = I18n.s("恢复本 App 导出的备份文件", "Restore a backup exported by this app"),
                 onClick = {
                     LockManager.suspend()
                     jsonPicker.launch(arrayOf("application/json", "text/plain", "*/*"))
@@ -204,51 +229,51 @@ fun SettingsScreen(repository: DepositRepository) {
             )
         }
 
-        SettingsGroup("导出") {
+        SettingsGroup(I18n.s("导出", "Export")) {
             SettingsItem(
                 icon = { Icon(Icons.Outlined.FileDownload, null) },
-                title = "导出 Excel（.xlsx）",
-                subtitle = "生成「总账」表格，可直接用 Excel 打开",
+                title = I18n.s("导出 Excel（.xlsx）", "Export Excel (.xlsx)"),
+                subtitle = I18n.s("生成「总账」表格，可直接用 Excel 打开", "Generates a “General Ledger” sheet, openable in Excel"),
                 onClick = {
                     scope.launch {
                         val path = exportXlsx(context, repository)
-                        showStatus(if (path != null) "导出成功，已保存到 $path" else "导出失败")
+                        showStatus(if (path != null) I18n.s("导出成功，已保存到 $path", "Exported to $path") else I18n.s("导出失败", "Export failed"))
                     }
                 },
             )
             SettingsItem(
                 icon = { Icon(Icons.Outlined.FileDownload, null) },
-                title = "导出 JSON 备份",
-                subtitle = "包含全部存款与日志，可再次导入",
+                title = I18n.s("导出 JSON 备份", "Export JSON backup"),
+                subtitle = I18n.s("包含全部存款与日志，可再次导入", "Contains all deposits and logs; re-importable"),
                 onClick = {
                     scope.launch {
                         val path = exportJson(context, repository)
-                        showStatus(if (path != null) "导出成功，已保存到 $path" else "导出失败")
+                        showStatus(if (path != null) I18n.s("导出成功，已保存到 $path", "Exported to $path") else I18n.s("导出失败", "Export failed"))
                     }
                 },
             )
             SettingsItem(
                 icon = { Icon(Icons.Outlined.Share, null) },
-                title = "通过微信等分享导出",
-                subtitle = "将 Excel 或 JSON 分享到微信、邮件等",
+                title = I18n.s("通过微信等分享导出", "Share export (WeChat etc.)"),
+                subtitle = I18n.s("将 Excel 或 JSON 分享到微信、邮件等", "Share the Excel or JSON via WeChat, email, etc."),
                 onClick = { showShareDialog = true },
             )
             SettingsItem(
                 icon = { Icon(Icons.Outlined.Storage, null) },
-                title = "清空数据",
-                subtitle = "删除所有存款与日志，不可恢复",
+                title = I18n.s("清空数据", "Clear all data"),
+                subtitle = I18n.s("删除所有存款与日志，不可恢复", "Delete all deposits and logs. Irreversible."),
                 onClick = { showClearDialog = true },
             )
         }
 
-        SettingsGroup("选项维护") {
+        SettingsGroup(I18n.s("选项维护", "Options")) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "银行名称默认留空，可从已有存款导入",
+                        I18n.s("银行名称默认留空，可从已有存款导入", "Bank list starts empty; import from existing deposits"),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -257,9 +282,9 @@ fun SettingsScreen(repository: DepositRepository) {
                         onClick = {
                             optionsStore.resetToDefaults()
                             refresh()
-                            showStatus("已恢复默认选项")
+                            showStatus(I18n.s("已恢复默认选项", "Options reset to defaults"))
                         }
-                    ) { Text("恢复默认") }
+                    ) { Text(I18n.s("恢复默认", "Reset")) }
                 }
                 Row(
                     Modifier.fillMaxWidth(),
@@ -278,14 +303,14 @@ fun SettingsScreen(repository: DepositRepository) {
                                 bankSet.forEach { if (it !in banks) optionsStore.addBank(it) }
                                 prodSet.forEach { if (it !in products) optionsStore.addProduct(it) }
                                 refresh()
-                                showStatus("已从已有存款导入选项")
+                                showStatus(I18n.s("已从已有存款导入选项", "Options imported from existing deposits"))
                             }
                         }
-                    ) { Text("从已有存款导入") }
+                    ) { Text(I18n.s("从已有存款导入", "Import from deposits")) }
                 }
             }
             OptionsSection(
-                title = "银行名称",
+                title = I18n.s("银行名称", "Banks"),
                 items = banks,
                 onAdd = {
                     optionsStore.addBank(it)
@@ -300,13 +325,13 @@ fun SettingsScreen(repository: DepositRepository) {
                         val rows = repository.renameAccount(old, new)
                         optionsStore.renameBank(old, new)
                         refresh()
-                        showStatus("已重命名为「$new」，同步 $rows 条存款记录")
+                        showStatus(I18n.s("已重命名为「$new」，同步 $rows 条存款记录", "Renamed to “$new”; updated $rows deposits"))
                     }
                 },
-                placeholder = "新增银行名称",
+                placeholder = I18n.s("新增银行名称", "New bank name"),
             )
             OptionsSection(
-                title = "产品名称",
+                title = I18n.s("产品名称", "Products"),
                 items = products,
                 onAdd = {
                     optionsStore.addProduct(it)
@@ -320,29 +345,29 @@ fun SettingsScreen(repository: DepositRepository) {
                     optionsStore.renameProduct(old, new)
                     refresh()
                 },
-                placeholder = "新增产品名称",
+                placeholder = I18n.s("新增产品名称", "New product name"),
             )
         }
 
-        SettingsGroup("提醒") {
+        SettingsGroup(I18n.s("提醒", "Reminders")) {
             SettingsItem(
                 icon = { Icon(Icons.Outlined.Notifications, null) },
-                title = "到期提醒",
-                subtitle = "到期前 30 天内每天检查并推送通知",
+                title = I18n.s("到期提醒", "Maturity reminders"),
+                subtitle = I18n.s("到期前 30 天内每天检查并推送通知", "Daily check and notify within 30 days before maturity"),
                 onClick = {
                     ReminderScheduler.schedule(context)
-                    showStatus("已安排每日到期检查")
+                    showStatus(I18n.s("已安排每日到期检查", "Daily maturity check scheduled"))
                 },
             )
         }
 
-        SettingsGroup("隐私") {
+        SettingsGroup(I18n.s("隐私", "Privacy")) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("总览默认隐藏金额")
+                        Text(I18n.s("总览默认隐藏金额", "Hide amounts on Home by default"))
                         Text(
-                            "开启后进入总览页默认显示 ***，点右上角眼睛可随时切换",
+                            I18n.s("开启后进入总览页默认显示 ***，点右上角眼睛可随时切换", "When on, Home shows *** by default; tap the eye icon to toggle"),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -352,7 +377,7 @@ fun SettingsScreen(repository: DepositRepository) {
                         onCheckedChange = { checked ->
                             privacyDefaultOn = checked
                             optionsStore.setPrivacyDefault(checked)
-                            message = if (checked) "已开启默认隐藏金额" else "已关闭默认隐藏金额"
+                            message = if (checked) I18n.s("已开启默认隐藏金额", "Hide-by-default: on") else I18n.s("已关闭默认隐藏金额", "Hide-by-default: off")
                         },
                     )
                 }
@@ -361,20 +386,22 @@ fun SettingsScreen(repository: DepositRepository) {
 
         SecuritySection()
 
-        SettingsGroup("关于") {
+        SettingsGroup(I18n.s("关于", "About")) {
             Column(Modifier.padding(16.dp)) {
-                Text("存款账本 v${BuildConfig.VERSION_NAME}", fontWeight = FontWeight.SemiBold)
+                Text(I18n.s("存款账本 v${BuildConfig.VERSION_NAME}", "DepositBook v${BuildConfig.VERSION_NAME}"), fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "本地离线存储，数据只保存在本机。\n" +
-                            "利息按「本金 × 年化 ÷ 365 × 已存天数」计算，与 Excel 账本口径一致。",
+                    I18n.s(
+                        "本地离线存储，数据只保存在本机。\n利息按「本金 × 年化 ÷ 365 × 已存天数」计算，与 Excel 账本口径一致。",
+                        "Local offline storage; data stays on this device only.\nInterest = principal × annual rate ÷ 365 × days held, same as the Excel ledger.",
+                    ),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
                 val mailContext = LocalContext.current
                 Text(
-                    "问题反馈请发邮件到 23831644@qq.com",
+                    I18n.s("问题反馈请发邮件到 23831644@qq.com", "Feedback email: 23831644@qq.com"),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable {
@@ -383,7 +410,7 @@ fun SettingsScreen(repository: DepositRepository) {
                                 Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:23831644@qq.com"))
                             )
                         } catch (e: Exception) {
-                            showStatus("未找到邮件应用，邮箱：23831644@qq.com")
+                            showStatus(I18n.s("未找到邮件应用，邮箱：23831644@qq.com", "No email app found; contact 23831644@qq.com"))
                         }
                     },
                 )
@@ -391,7 +418,7 @@ fun SettingsScreen(repository: DepositRepository) {
         }
 
         if (importing) {
-            Text("正在导入…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(I18n.s("正在导入…", "Importing…"), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         message?.let {
             Text(it, fontSize = 12.sp, color = MaterialTheme.colorScheme.tertiary)
@@ -401,19 +428,19 @@ fun SettingsScreen(repository: DepositRepository) {
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("确认清空所有数据？") },
-            text = { Text("此操作不可恢复，请确保已导出备份。") },
+            title = { Text(I18n.s("确认清空所有数据？", "Clear all data?")) },
+            text = { Text(I18n.s("此操作不可恢复，请确保已导出备份。", "This cannot be undone. Make sure you have exported a backup.")) },
             confirmButton = {
                 TextButton(onClick = {
                     showClearDialog = false
                     scope.launch {
                         repository.clearAllData()
-                        showStatus("已清空")
+                        showStatus(I18n.s("已清空", "Cleared"))
                     }
-                }) { Text("清空", color = MaterialTheme.colorScheme.error) }
+                }) { Text(I18n.s("清空", "Clear"), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) { Text("取消") }
+                TextButton(onClick = { showClearDialog = false }) { Text(I18n.s("取消", "Cancel")) }
             },
         )
     }
@@ -421,14 +448,14 @@ fun SettingsScreen(repository: DepositRepository) {
     if (showShareDialog) {
         AlertDialog(
             onDismissRequest = { showShareDialog = false },
-            title = { Text("分享到微信等") },
-            text = { Text("选择要分享的文件格式，分享到微信、QQ、邮件等") },
+            title = { Text(I18n.s("分享到微信等", "Share to WeChat etc.")) },
+            text = { Text(I18n.s("选择要分享的文件格式，分享到微信、QQ、邮件等", "Pick a format to share via WeChat, QQ, email, etc.")) },
             confirmButton = {
                 TextButton(onClick = {
                     showShareDialog = false
                     scope.launch {
                         val uri = shareFile(context, repository, "xlsx")
-                        if (uri == null) showStatus("分享失败") else shareViaIntent(context, uri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                        if (uri == null) showStatus(I18n.s("分享失败", "Share failed")) else shareViaIntent(context, uri, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                     }
                 }) { Text("Excel (.xlsx)") }
             },
@@ -438,10 +465,10 @@ fun SettingsScreen(repository: DepositRepository) {
                         showShareDialog = false
                         scope.launch {
                             val uri = shareFile(context, repository, "json")
-                            if (uri == null) showStatus("分享失败") else shareViaIntent(context, uri, "application/json")
+                            if (uri == null) showStatus(I18n.s("分享失败", "Share failed")) else shareViaIntent(context, uri, "application/json")
                         }
-                    }) { Text("JSON 备份") }
-                    TextButton(onClick = { showShareDialog = false }) { Text("取消") }
+                    }) { Text(I18n.s("JSON 备份", "JSON backup")) }
+                    TextButton(onClick = { showShareDialog = false }) { Text(I18n.s("取消", "Cancel")) }
                 }
             },
         )
@@ -609,8 +636,8 @@ private fun OptionsSection(
                             onRename(item, editInput)
                             editing = null
                         }
-                    }, enabled = editInput.isNotBlank()) { Text("保存") }
-                    TextButton(onClick = { editing = null }) { Text("取消") }
+                    }, enabled = editInput.isNotBlank()) { Text(I18n.s("保存", "Save")) }
+                    TextButton(onClick = { editing = null }) { Text(I18n.s("取消", "Cancel")) }
                 }
             } else {
                 Row(
@@ -624,7 +651,7 @@ private fun OptionsSection(
                     ) {
                         Icon(
                             Icons.Outlined.Edit,
-                            contentDescription = "编辑 $item",
+                            contentDescription = I18n.s("编辑 $item", "Edit $item"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp),
                         )
@@ -635,7 +662,7 @@ private fun OptionsSection(
                     ) {
                         Icon(
                             Icons.Outlined.Close,
-                            contentDescription = "删除 $item",
+                            contentDescription = I18n.s("删除 $item", "Delete $item"),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(16.dp),
                         )
@@ -662,7 +689,7 @@ private fun OptionsSection(
                     }
                 },
                 enabled = input.isNotBlank(),
-            ) { Text("添加") }
+            ) { Text(I18n.s("添加", "Add")) }
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -715,7 +742,7 @@ private fun shareViaIntent(context: Context, uri: Uri, mimeType: String) {
     }
     // 分享面板短暂离开应用，挂起锁避免返回时要求重新验证
     LockManager.suspend()
-    context.startActivity(Intent.createChooser(intent, "分享到...").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    context.startActivity(Intent.createChooser(intent, I18n.s("分享到...", "Share to…")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 
@@ -739,17 +766,17 @@ private fun SecuritySection() {
     var setupHint by remember { mutableStateOf("") }
 
     fun hint(): String = when {
-        pinConfigured && patternConfigured -> "两种密码均已配置，可在解锁界面切换"
-        pinConfigured -> "数字密码已配置；切换手势前会先要求设置手势"
-        else -> "尚未配置密码"
+        pinConfigured && patternConfigured -> I18n.s("两种密码均已配置，可在解锁界面切换", "Both methods configured; switch on the lock screen")
+        pinConfigured -> I18n.s("数字密码已配置；切换手势前会先要求设置手势", "PIN configured; you'll set a pattern before switching")
+        else -> I18n.s("尚未配置密码", "No PIN or pattern configured")
     }
 
-    SettingsGroup("安全") {
+    SettingsGroup(I18n.s("安全", "Security")) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("应用锁")
-                    Text("从后台切回或首次进入需要验证", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(I18n.s("应用锁", "App lock"))
+                    Text(I18n.s("从后台切回或首次进入需要验证", "Verification required when returning from background or first launch"), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 androidx.compose.material3.Switch(
                     checked = enabled,
@@ -761,7 +788,7 @@ private fun SecuritySection() {
                             pendingSwitch = false
                             showSet = true
                             step = 0
-                            setupHint = "开启应用锁前，请先设置数字密码"
+                            setupHint = I18n.s("开启应用锁前，请先设置数字密码", "Set a PIN before enabling app lock")
                         } else {
                             enabled = checked
                             security.setEnabled(checked)
@@ -771,7 +798,7 @@ private fun SecuritySection() {
             }
             if (enabled) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("解锁方式", modifier = Modifier.weight(1f))
+                    Text(I18n.s("解锁方式", "Unlock method"), modifier = Modifier.weight(1f))
                     TextButton(onClick = {
                         val target = if (lockType == "pin") "pattern" else "pin"
                         val configured = if (target == "pin") pinConfigured else patternConfigured
@@ -785,10 +812,10 @@ private fun SecuritySection() {
                             pendingSwitch = true
                             showSet = true
                             step = 0
-                            setupHint = if (target == "pattern") "切换到手势密码前，请先设置手势密码" else "切换到数字密码前，请先设置数字密码"
+                            setupHint = if (target == "pattern") I18n.s("切换到手势密码前，请先设置手势密码", "Set a pattern before switching to pattern unlock") else I18n.s("切换到数字密码前，请先设置数字密码", "Set a PIN before switching to PIN unlock")
                         }
                     }) {
-                        Text(if (lockType == "pin") "数字密码" else "手势密码")
+                        Text(if (lockType == "pin") I18n.s("数字密码", "PIN") else I18n.s("手势密码", "Pattern"))
                     }
                 }
                 Text(
@@ -805,7 +832,7 @@ private fun SecuritySection() {
                     tempPin = ""
                     tempPattern = ""
                 }) {
-                    Text("修改${if (lockType == "pin") "数字密码" else "手势密码"}")
+                    Text(I18n.s("修改${if (lockType == "pin") "数字密码" else "手势密码"}", "Change ${if (lockType == "pin") "PIN" else "pattern"}"))
                 }
             }
         }
@@ -829,10 +856,10 @@ private fun SecuritySection() {
                     }
                     if (setType == "pin") {
                         if (step == 0) {
-                            PinLock(title = "设置数字密码（4位）", onSuccess = { pin -> tempPin = pin; step = 1 })
+                            PinLock(title = I18n.s("设置数字密码（4位）", "Set PIN (4 digits)"), onSuccess = { pin -> tempPin = pin; step = 1 })
                         } else {
                             PinLock(
-                                title = "确认数字密码",
+                                title = I18n.s("确认数字密码", "Confirm PIN"),
                                 onVerify = { it == tempPin },
                                 onSuccess = {
                                     security.setPin(tempPin)
@@ -855,10 +882,10 @@ private fun SecuritySection() {
                         }
                     } else {
                         if (step == 0) {
-                            PatternLock(title = "设置手势密码（至少4点）", onSuccess = { pattern -> tempPattern = pattern; step = 1 })
+                            PatternLock(title = I18n.s("设置手势密码（至少4点）", "Set pattern (at least 4 dots)"), onSuccess = { pattern -> tempPattern = pattern; step = 1 })
                         } else {
                             PatternLock(
-                                title = "确认手势密码",
+                                title = I18n.s("确认手势密码", "Confirm pattern"),
                                 onVerify = { it == tempPattern },
                                 onSuccess = {
                                     security.setPattern(tempPattern)

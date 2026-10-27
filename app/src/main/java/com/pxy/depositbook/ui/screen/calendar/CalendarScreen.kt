@@ -1,5 +1,7 @@
 package com.pxy.depositbook.ui.screen.calendar
 
+import com.pxy.depositbook.util.I18n
+
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -76,10 +78,10 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("存入/到期日历") },
+                title = { Text(I18n.s("存入/到期日历", "Starts & Maturities")) },
                 navigationIcon = {
                     IconButton(onClick = { Log.d("DepositBook", "CalendarScreen: onBack"); onBack() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = I18n.s("返回", "Back"))
                     }
                 },
             )
@@ -97,7 +99,7 @@ fun CalendarScreen(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { vm.prev() }) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowLeft, contentDescription = "上一个")
+                            Icon(Icons.AutoMirrored.Outlined.ArrowLeft, contentDescription = I18n.s("上一个", "Prev"))
                         }
                         Text(
                             state.title,
@@ -109,7 +111,7 @@ fun CalendarScreen(
                             overflow = TextOverflow.Ellipsis,
                         )
                         IconButton(onClick = { vm.next() }) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowRight, contentDescription = "下一个")
+                            Icon(Icons.AutoMirrored.Outlined.ArrowRight, contentDescription = I18n.s("下一个", "Next"))
                         }
                     }
                     Row(
@@ -117,17 +119,17 @@ fun CalendarScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
-                        TextButton(onClick = { vm.goToday() }) { Text("回到今天") }
+                        TextButton(onClick = { vm.goToday() }) { Text(I18n.s("回到今天", "Today")) }
                         Spacer(Modifier.weight(1f))
                         FilterChip(
                             selected = state.mode == CalendarMode.MONTH,
                             onClick = { if (state.mode != CalendarMode.MONTH) vm.toggleMode() },
-                            label = { Text("按月") },
+                            label = { Text(I18n.s("按月", "Monthly")) },
                         )
                         FilterChip(
                             selected = state.mode == CalendarMode.YEAR,
                             onClick = { if (state.mode != CalendarMode.YEAR) vm.toggleMode() },
-                            label = { Text("按年") },
+                            label = { Text(I18n.s("按年", "Yearly")) },
                         )
                     }
                 }
@@ -135,15 +137,15 @@ fun CalendarScreen(
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LegendDot(color = Color(0xFF22D3EE), text = "存入")
-                    LegendDot(color = Color(0xFFF59E0B), text = "到期")
+                    LegendDot(color = Color(0xFF22D3EE), text = I18n.s("存入", "Start"))
+                    LegendDot(color = Color(0xFFF59E0B), text = I18n.s("到期", "Mature"))
                 }
             }
 
             if (state.mode == CalendarMode.MONTH) {
                 item {
                     Row(Modifier.fillMaxWidth()) {
-                        listOf("一", "二", "三", "四", "五", "六", "日").forEach {
+                        listOf(I18n.s("一", "Mo"), I18n.s("二", "Tu"), I18n.s("三", "We"), I18n.s("四", "Th"), I18n.s("五", "Fr"), I18n.s("六", "Sa"), I18n.s("日", "Su")).forEach {
                             Text(
                                 it,
                                 modifier = Modifier.weight(1f),
@@ -235,14 +237,14 @@ fun CalendarScreen(
                         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    if (state.mode == CalendarMode.MONTH) "当日记录 - ${state.selectedDate}" else "全年记录 - ${state.selectedDate?.year}年",
+                                    if (state.mode == CalendarMode.MONTH) I18n.s("当日记录 - ${state.selectedDate}", "Records of ${state.selectedDate}") else I18n.s("全年记录 - ${state.selectedDate?.year}年", "Records of ${state.selectedDate?.year}"),
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f),
                                 )
-                                TextButton(onClick = { vm.clearSelection() }) { Text("清除") }
+                                TextButton(onClick = { vm.clearSelection() }) { Text(I18n.s("清除", "Clear")) }
                             }
                             if (state.selectedItems.isEmpty()) {
-                                Text("暂无存入或到期记录", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(I18n.s("暂无存入或到期记录", "No start or maturity records"), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     state.selectedItems.forEach { item ->
@@ -305,10 +307,10 @@ private fun MonthCell(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     if (cell.startCount > 0) {
-                        Icon(Icons.Outlined.AddCircle, contentDescription = "存入", tint = Color(0xFF22D3EE), modifier = Modifier.size(10.dp))
+                        Icon(Icons.Outlined.AddCircle, contentDescription = I18n.s("存入", "Start"), tint = Color(0xFF22D3EE), modifier = Modifier.size(10.dp))
                     }
                     if (cell.endCount > 0) {
-                        Icon(Icons.Outlined.CheckCircle, contentDescription = "到期", tint = Color(0xFFF59E0B), modifier = Modifier.size(10.dp))
+                        Icon(Icons.Outlined.CheckCircle, contentDescription = I18n.s("到期", "Mature"), tint = Color(0xFFF59E0B), modifier = Modifier.size(10.dp))
                     }
                 }
             }
@@ -361,7 +363,7 @@ private fun YearCell(
                 )
                 if (isCurrentYear) {
                     Text(
-                        "今年",
+                        I18n.s("今年", "This year"),
                         fontSize = 9.sp,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 2.dp),
@@ -377,9 +379,9 @@ private fun YearCell(
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                if (cell.startCount > 0) Text("存入 ${cell.startCount} 笔", fontSize = 10.sp, color = Color(0xFF22D3EE))
-                if (cell.endCount > 0) Text("到期 ${cell.endCount} 笔", fontSize = 10.sp, color = Color(0xFFF59E0B))
-                if (cell.startCount == 0 && cell.endCount == 0) Text("无记录", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (cell.startCount > 0) Text(I18n.s("存入 ${cell.startCount} 笔", "${cell.startCount} started"), fontSize = 10.sp, color = Color(0xFF22D3EE))
+                if (cell.endCount > 0) Text(I18n.s("到期 ${cell.endCount} 笔", "${cell.endCount} matured"), fontSize = 10.sp, color = Color(0xFFF59E0B))
+                if (cell.startCount == 0 && cell.endCount == 0) Text(I18n.s("无记录", "No records"), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -403,7 +405,7 @@ private fun DayItemRow(item: CalendarItem, onClick: (() -> Unit)? = null) {
             Column(Modifier.weight(1f)) {
                 Text(item.deposit.accountName, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${if (item.type == ItemType.START) "存入" else "到期"} · ${FormatUtils.date(item.deposit.startDate)}→${FormatUtils.date(item.deposit.endDate)} · 本金 ${FormatUtils.money(item.deposit.principal)} · ${item.deposit.productName ?: ""}",
+                    "${if (item.type == ItemType.START) I18n.s("存入", "Start") else I18n.s("到期", "Mature")} · ${FormatUtils.date(item.deposit.startDate)}→${FormatUtils.date(item.deposit.endDate)} · 本金 ${FormatUtils.money(item.deposit.principal)} · ${item.deposit.productName ?: ""}",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
