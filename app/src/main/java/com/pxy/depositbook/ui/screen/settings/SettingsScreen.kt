@@ -63,6 +63,8 @@ import com.pxy.depositbook.data.backup.BackupFile
 import com.pxy.depositbook.data.backup.DepositDto
 import com.pxy.depositbook.data.backup.XlsxExporter
 import com.pxy.depositbook.data.entity.Deposit
+import com.pxy.depositbook.data.prefs.OptionsStore
+import com.pxy.depositbook.data.prefs.ProductDef
 import com.pxy.depositbook.data.repo.DepositRepository
 import com.pxy.depositbook.ui.components.PatternLock
 import com.pxy.depositbook.ui.components.PinLock
@@ -82,10 +84,10 @@ fun SettingsScreen(repository: DepositRepository) {
     val scope = rememberCoroutineScope()
     val optionsStore = remember { (context.applicationContext as DepositApp).options }
     var banks by remember { mutableStateOf(optionsStore.banks()) }
-    var products by remember { mutableStateOf(optionsStore.products()) }
+    var productDefs by remember { mutableStateOf(optionsStore.productDefs()) }
     fun refresh() {
         banks = optionsStore.banks()
-        products = optionsStore.products()
+        productDefs = optionsStore.productDefs()
     }
     var message by remember { mutableStateOf<String?>(null) }
     var privacyDefaultOn by remember { mutableStateOf(optionsStore.privacyDefault()) }
@@ -295,13 +297,24 @@ fun SettingsScreen(repository: DepositRepository) {
                             scope.launch {
                                 val all = repository.getAllOnce()
                                 val bankSet = banks.toMutableSet()
-                                val prodSet = products.toMutableSet()
                                 all.forEach { d ->
                                     if (!d.accountName.isNullOrBlank()) bankSet.add(d.accountName)
-                                    if (!d.productName.isNullOrBlank()) prodSet.add(d.productName)
                                 }
                                 bankSet.forEach { if (it !in banks) optionsStore.addBank(it) }
-                                prodSet.forEach { if (it !in products) optionsStore.addProduct(it) }
+                                // 产品：按名称汇总；同名存款存期一致则带出默认存期，允许修改存期
+                                val existing = productDefs.associateBy { it.name }
+                                all.groupBy { it.productName?.trim().orEmpty() }
+                                    .filterKeys { it.isNotBlank() }
+                                    .forEach { (name, rows) ->
+                                        if (!existing.containsKey(name) && optionsStore.products().none { it == name }) {
+                                            val terms = rows.mapNotNull { it.termDays }.distinct()
+                                            val def = when (terms.size) {
+                                                1 -> ProductDef(name, terms.first().toLong(), true)
+                                                else -> ProductDef(name, null, true)
+                                            }
+                                            optionsStore.addProductDef(def)
+                                        }
+                                    }
                                 refresh()
                                 showStatus(I18n.s("已从已有存款导入选项", "Options imported from existing deposits"))
                             }
@@ -330,11 +343,14 @@ fun SettingsScreen(repository: DepositRepository) {
                 },
                 placeholder = I18n.s("新增银行名称", "New bank name"),
             )
-            OptionsSection(
-                title = I18n.s("产品名称", "Products"),
-                items = products,
-                onAdd = {
-                    optionsStore.addProduct(it)
+            ProductOptionsSection(
+                defs = productDefs,
+                onAdd = { def ->
+                    optionsStore.addProductDef(def)
+                    refresh()
+                },
+                onUpdate = { def ->
+                    optionsStore.addProductDef(def) // 同名覆盖
                     refresh()
                 },
                 onRemove = {
@@ -345,7 +361,6 @@ fun SettingsScreen(repository: DepositRepository) {
                     optionsStore.renameProduct(old, new)
                     refresh()
                 },
-                placeholder = I18n.s("新增产品名称", "New product name"),
             )
         }
 
@@ -600,6 +615,229 @@ private suspend fun exportXlsx(context: Context, repository: DepositRepository):
             null
         }
     }
+
+/** 存期天数 → 展示文本（1 年 / 6 月 / 30 天） */
+private fun termDisplay(days: Long?): String? = when {
+    days == null -> null
+    days > 0 && days % 365L == 0L -> I18n.s("${days / 365} 年", "${days / 365} year(s)")
+    days % 30L == 0L -> I18n.s("${days / 30} 月", "${days / 30} month(s)")
+    else -> I18n.s("$days 天", "$days day(s)")
+}
+
+/**
+ * 产品名称维护：新增/编辑时填写名称、默认存期（年/月/天）与「允许修改存期」。
+ * - 系统预置（1/2/3/5 年期整存整取）存期固定，不显示编辑按钮，仅可删除
+ * - 自定义产品可编辑全部字段
+ */
+@Composable
+private fun ProductOptionsSection(
+    defs: List<ProductDef>,
+    onAdd: (ProductDef) -> Unit,
+    onUpdate: (ProductDef) -> Unit,
+    onRemove: (String) -> Unit,
+    onRename: (String, String) -> Unit,
+) {
+    var showAdd by remember { mutableStateOf(false) }
+    var editingDef by remember { mutableStateOf<ProductDef?>(null) }
+
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(I18n.s("产品名称", "Products"), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(6.dp))
+
+        defs.forEach { def ->
+            val isPreset = OptionsStore.DEFAULT_PRODUCT_DEFS.any { it.name == def.name }
+            Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(def.name, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    // 系统预置存期固定，不提供编辑按钮；自定义产品可编辑
+                    if (!isPreset) {
+                        IconButton(
+                            onClick = { editingDef = def },
+                            modifier = Modifier.size(28.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.Edit,
+                                contentDescription = I18n.s("编辑 ${def.name}", "Edit ${def.name}"),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { onRemove(def.name) },
+                        modifier = Modifier.size(28.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Close,
+                            contentDescription = I18n.s("删除 ${def.name}", "Delete ${def.name}"),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                val termText = termDisplay(def.termDays)
+                Text(
+                    when {
+                        termText == null ->
+                            if (def.allowModify) I18n.s("无默认存期；选择后由用户填写", "No default term; user enters it")
+                            else I18n.s("无默认存期；选择后由用户填写（不锁定）", "No default term; user enters it (not locked)")
+                        def.allowModify -> I18n.s("默认存期 $termText · 选择后可修改存期", "Default term $termText · modifiable")
+                        else -> I18n.s("存期 $termText · 固定不可修改", "Term $termText · fixed")
+                    },
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { showAdd = true }) { Text(I18n.s("添加产品", "Add product")) }
+        }
+        Spacer(Modifier.height(8.dp))
+    }
+
+    if (showAdd) {
+        ProductDefDialog(
+            title = I18n.s("添加产品", "Add product"),
+            initial = null,
+            onDismiss = { showAdd = false },
+            onConfirm = { def ->
+                onAdd(def)
+                showAdd = false
+            },
+        )
+    }
+
+    editingDef?.let { def ->
+        ProductDefDialog(
+            title = I18n.s("编辑产品", "Edit product"),
+            initial = def,
+            onDismiss = { editingDef = null },
+            onConfirm = { newDef ->
+                if (newDef.name != def.name && defs.none { it.name == newDef.name }) {
+                    onRename(def.name, newDef.name)
+                }
+                onUpdate(newDef)
+                editingDef = null
+            },
+        )
+    }
+}
+
+/**
+ * 产品定义对话框：名称 + 默认存期（数值 + 单位 年/月/天）+ 是否允许修改存期。
+ * 存期数值留空 = 无默认存期（选择后由用户填写）。
+ */
+@Composable
+private fun ProductDefDialog(
+    title: String,
+    initial: ProductDef?,
+    onDismiss: () -> Unit,
+    onConfirm: (ProductDef) -> Unit,
+) {
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    val days0 = initial?.termDays
+    var count by remember {
+        mutableStateOf(
+            when {
+                days0 == null -> ""
+                days0 > 0 && days0 % 365L == 0L -> (days0 / 365L).toString()
+                days0 % 30L == 0L -> (days0 / 30L).toString()
+                else -> days0.toString()
+            },
+        )
+    }
+    var unit by remember {
+        mutableStateOf(
+            when {
+                days0 == null -> "Y"
+                days0 > 0 && days0 % 365L == 0L -> "Y"
+                days0 % 30L == 0L -> "M"
+                else -> "D"
+            },
+        )
+    }
+    var allowModify by remember { mutableStateOf(initial?.allowModify ?: true) }
+
+    val countVal = count.trim().toLongOrNull()
+    val days = when (unit) {
+        "Y" -> countVal?.times(365L)
+        "M" -> countVal?.times(30L)
+        else -> countVal
+    }
+    val valid = name.isNotBlank() && (countVal == null || countVal > 0L)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontSize = 16.sp) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(I18n.s("产品名称", "Product name"), fontSize = 12.sp) },
+                    placeholder = { Text(I18n.s("如：三年大额存单", "e.g. 3-year CD"), fontSize = 12.sp) },
+                    singleLine = true,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = count,
+                        onValueChange = { count = it.filter { c -> c.isDigit() } },
+                        label = { Text(I18n.s("默认存期", "Default term"), fontSize = 12.sp) },
+                        placeholder = { Text(I18n.s("留空＝选择后自填", "Blank = user enters"), fontSize = 11.sp) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("Y", "M", "D").forEach { c ->
+                            androidx.compose.material3.FilterChip(
+                                selected = unit == c,
+                                onClick = { unit = c },
+                                label = {
+                                    Text(
+                                        when (c) {
+                                            "Y" -> I18n.s("年", "Y")
+                                            "M" -> I18n.s("月", "M")
+                                            else -> I18n.s("天", "D")
+                                        },
+                                        fontSize = 12.sp,
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(I18n.s("允许修改存期", "Allow changing the term"), fontSize = 13.sp)
+                        Text(
+                            I18n.s("关闭后，选择该产品时存期将固定锁死，不可修改", "When off, the term is locked once the product is selected"),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = allowModify,
+                        onCheckedChange = { allowModify = it },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = { onConfirm(ProductDef(name.trim(), days, allowModify)) },
+            ) { Text(I18n.s("确定", "OK")) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(I18n.s("取消", "Cancel")) }
+        },
+    )
+}
 
 @Composable
 private fun OptionsSection(

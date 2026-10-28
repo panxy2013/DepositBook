@@ -43,8 +43,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.pxy.depositbook.DepositApp
 import com.pxy.depositbook.data.entity.Deposit
+import com.pxy.depositbook.data.model.BankCatalog
+import com.pxy.depositbook.data.prefs.ProductDef
 import com.pxy.depositbook.data.repo.DepositRepository
+import com.pxy.depositbook.ui.components.BankIcon
 import com.pxy.depositbook.ui.components.DropdownField
+import com.pxy.depositbook.ui.components.DropdownItem
+import com.pxy.depositbook.ui.components.SearchableDropdownField
 import com.pxy.depositbook.util.DateUtils
 import com.pxy.depositbook.util.FormatUtils
 import com.pxy.depositbook.util.InterestCalculator
@@ -62,8 +67,13 @@ fun DepositEditScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val optionsStore = remember { (context.applicationContext as DepositApp).options }
-    var bankOptions by remember { mutableStateOf(optionsStore.banks()) }
-    var productOptions by remember { mutableStateOf(optionsStore.products()) }
+    var userBanks by remember { mutableStateOf(optionsStore.banks()) }
+    var productDefs by remember { mutableStateOf(optionsStore.productDefs()) }
+    // 有存单的银行排前面：按最近一次存入时间倒序（用于银行下拉排序）
+    var depositBankOrder by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // 存期锁定：产品不允许修改存期时，存期单位/数值不可编辑
+    var termLocked by remember { mutableStateOf(false) }
 
     // origin 将在下面赋值
     val editing = remember { mutableStateOf<Deposit?>(null) }
@@ -79,19 +89,43 @@ fun DepositEditScreen(
     if (!loaded.value) return
     val origin = editing.value
 
+    // 读取所有存款，计算银行排序：最近存入的银行排最前
+    LaunchedEffect(Unit) {
+        val all = repository.getAllOnce()
+        val latest = mutableMapOf<String, Long>()
+        all.forEach { d ->
+            val b = d.accountName?.trim().orEmpty()
+            if (b.isNotBlank()) {
+                val cur = latest[b]
+                if (cur == null || d.createdAt > cur) latest[b] = d.createdAt
+            }
+        }
+        depositBankOrder = latest.entries.sortedByDescending { it.value }.map { it.key }
+    }
+
     LaunchedEffect(origin) {
         val b = origin?.accountName?.trim().orEmpty()
-        val p = origin?.productName?.trim().orEmpty()
-        if (b.isNotBlank() && bankOptions.none { it == b }) {
-            bankOptions = bankOptions + b
+        if (b.isNotBlank() && !BankCatalog.isBuiltIn(b) && userBanks.none { it == b }) {
+            userBanks = userBanks + b
         }
-        if (p.isNotBlank() && productOptions.none { it == p }) {
-            productOptions = productOptions + p
+        // 编辑旧存款：若原始存期与产品定义不一致，保持原值（不加锁不覆盖）
+        val def0 = origin?.productName?.let { p -> productDefs.firstOrNull { it.name == p } }
+        if (def0 != null) {
+            termLocked = !def0.allowModify && def0.termDays != null
         }
     }
 
+    // 产品下拉选项（含编辑旧存款时临时引入的产品）
+    val productItems = remember(productDefs, origin) {
+        val list = productDefs
+        val extra = origin?.productName
+        if (!extra.isNullOrBlank() && list.none { it.name == extra }) {
+            list + ProductDef(extra, null, true)
+        } else list
+    }
+
     var accountName by remember(origin) { mutableStateOf(origin?.accountName ?: "") }
-    var productName by remember(origin) { mutableStateOf(origin?.productName ?: (if (productOptions.isNotEmpty()) productOptions.first() else "")) }
+    var productName by remember(origin) { mutableStateOf(origin?.productName ?: (if (productItems.isNotEmpty()) productItems.first().name else "")) }
     var principal by remember(origin) {
         mutableStateOf(origin?.principal?.takeIf { it > 0 }?.let { FormatUtils.moneyPlain(it) } ?: "")
     }
@@ -182,21 +216,41 @@ fun DepositEditScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            DropdownField(
+            // 银行选择：内置清单（带图标）+ 用户自定义银行，输入关键字筛选
+            // 排序：有存单的银行在前（最近存入的最前），其余按原顺序
+            SearchableDropdownField(
                 label = I18n.s("银行名称", "Bank"),
                 value = accountName,
-                options = bankOptions,
-                placeholder = if (bankOptions.isEmpty()) I18n.s("请先到「设置」添加银行", "Add a bank in Settings first") else I18n.s("请选择银行", "Select a bank"),
+                options = remember(userBanks, depositBankOrder) {
+                    (userBanks + BankCatalog.BANKS.filterNot { b -> userBanks.contains(b) })
+                        .sortedWith(compareBy { bank ->
+                            depositBankOrder.indexOf(bank).let { if (it == -1) Int.MAX_VALUE else it }
+                        })
+                        .map { b ->
+                            val icon: (@Composable () -> Unit)? = if (BankCatalog.isBuiltIn(b)) {
+                                { BankIcon(b) }
+                            } else null
+                            DropdownItem(
+                                b,
+                                icon = icon,
+                                aliases = BankCatalog.ALIASES.filterValues { it == b }.keys.toList(),
+                            )
+                        }
+                },
+                placeholder = I18n.s("输入关键字筛选，如「工行」「微众」", "Type to filter, e.g. ICBC"),
                 onSelect = { accountName = it },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (bankOptions.isEmpty()) {
+            // 手动添加自定义银行（不带图标）
+            var showAddBank by remember { mutableStateOf(false) }
+            TextButton(onClick = { showAddBank = !showAddBank }) {
                 Text(
-                    I18n.s("还没有可选银行，请到「设置 → 选项维护 → 银行名称」里添加，或点下方按钮直接新建。", "No banks yet. Add in Settings → Options → Banks, or create one below."),
-                    fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (showAddBank) I18n.s("收起自定义银行", "Hide custom bank")
+                    else I18n.s("没有找到？手动添加银行（自定义银行不带图标）", "Not listed? Add a custom bank (no icon)"),
                 )
+            }
+            if (showAddBank) {
                 var newBank by remember { mutableStateOf("") }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                     OutlinedTextField(
@@ -212,7 +266,7 @@ fun DepositEditScreen(
                             val name = newBank.trim()
                             if (name.isNotEmpty()) {
                                 optionsStore.addBank(name)
-                                bankOptions = optionsStore.banks()
+                                userBanks = optionsStore.banks()
                                 accountName = name
                                 newBank = ""
                             }
@@ -222,12 +276,34 @@ fun DepositEditScreen(
                 }
             }
 
-            DropdownField(
+            // 产品选择：选择后自动带出默认存期；预置整存整取不允许更改存期
+            SearchableDropdownField(
                 label = I18n.s("产品名称", "Product"),
                 value = productName,
-                options = productOptions,
-                placeholder = I18n.s("请选择产品", "Select a product"),
-                onSelect = { productName = it },
+                options = productItems.map { DropdownItem(it.name) },
+                placeholder = I18n.s("输入关键字筛选", "Type to filter"),
+                onSelect = { sel ->
+                    productName = sel
+                    val def = productDefs.firstOrNull { it.name == sel }
+                    if (def?.termDays != null) {
+                        val days = def.termDays!!
+                        when {
+                            days > 0 && days % 365L == 0L -> {
+                                termUnit = "Y"
+                                termCountInput = (days / 365L).toString()
+                            }
+                            days % 30L == 0L -> {
+                                termUnit = "M"
+                                termCountInput = (days / 30L).toString()
+                            }
+                            else -> {
+                                termUnit = "D"
+                                termCountInput = days.toString()
+                            }
+                        }
+                    }
+                    termLocked = def?.let { it.termDays != null && !it.allowModify } ?: false
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -252,29 +328,48 @@ fun DepositEditScreen(
 
             DateField(I18n.s("存入日期", "Deposit date"), startDate, Modifier.fillMaxWidth()) { showStartPicker = true }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                DropdownField(
-                    label = I18n.s("存期单位", "Term unit"),
-                    value = termUnits.first { it.code == termUnit }.display(),
-                    options = termUnits.map { it.display() },
-                    placeholder = I18n.s("请选择", "Select"),
-                    onSelect = { sel ->
-                        termUnit = termUnits.first { it.display() == sel }.code
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedTextField(
-                    value = termCountInput,
-                    onValueChange = { termCountInput = it.filter { c -> c.isDigit() } },
-                    label = { Text(I18n.s("存期数值", "Term length")) },
-                    placeholder = { Text(I18n.s("如：12", "e.g. 12")) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                )
+            if (termLocked) {
+                // 存期锁定：只读展示
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            I18n.s("存期（按产品固定，不可修改）", "Term (fixed by product, not editable)"),
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        val u = termUnits.first { it.code == termUnit }
+                        Text(
+                            I18n.s("%s %s（%d 天）", "%s %s (%d days)").format(termCountInput, u.display(), days),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    DropdownField(
+                        label = I18n.s("存期单位", "Term unit"),
+                        value = termUnits.first { it.code == termUnit }.display(),
+                        options = termUnits.map { it.display() },
+                        placeholder = I18n.s("请选择", "Select"),
+                        onSelect = { sel ->
+                            termUnit = termUnits.first { it.display() == sel }.code
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = termCountInput,
+                        onValueChange = { termCountInput = it.filter { c -> c.isDigit() } },
+                        label = { Text(I18n.s("存期数值", "Term length")) },
+                        placeholder = { Text(I18n.s("如：12", "e.g. 12")) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
 
             OutlinedCard(modifier = Modifier.fillMaxWidth()) {

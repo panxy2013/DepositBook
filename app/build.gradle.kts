@@ -154,6 +154,10 @@ dependencies {
     // JSON
     implementation("com.google.code.gson:gson:2.11.0")
 
+    // 银行 logo SVG 渲染（离线 assets + coil-svg）
+    implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-svg:2.6.0")
+
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

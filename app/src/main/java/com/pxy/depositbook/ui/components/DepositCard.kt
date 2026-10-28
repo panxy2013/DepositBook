@@ -31,7 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pxy.depositbook.data.model.BankCatalog
 import com.pxy.depositbook.data.model.DepositUi
+import com.pxy.depositbook.ui.components.BankIcon
 import com.pxy.depositbook.ui.theme.Accent
 import com.pxy.depositbook.ui.theme.AccentLight
 import com.pxy.depositbook.ui.theme.Danger
@@ -79,12 +81,19 @@ fun DepositCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(
-                        d.accountName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        // 内置银行显示 logo；自定义银行不带图标
+                        if (BankCatalog.isBuiltIn(d.accountName)) {
+                            BankIcon(d.accountName)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            d.accountName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                        )
+                    }
                     if (!d.productName.isNullOrBlank()) {
                         Spacer(Modifier.height(2.dp))
                         Text(
