@@ -8,8 +8,8 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.8 | [deposit-book-v1.0.8.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.8/deposit-book-v1.0.8.apk) |
 | v1.0.7 | [deposit-book-v1.0.7.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.7/deposit-book-v1.0.7.apk) |
-| v1.0.6 | [deposit-book-v1.0.6.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.6/deposit-book-v1.0.6.apk) |
 
 > 手机上点击下载后，允许安装未知来源应用即可安装。
 
@@ -52,6 +52,11 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.8（2026-10-28）
+- 全部 82 家内置银行图标由「标志 + 文字」组合标更换为**纯标志图形**版本，界面更加干净统一
+- 另有 3 家（平安、光大、新韩）公开组合标中不含独立的标志图形，不强行裁切，继续使用彩色文字圆标显示
+- 图标裁切后溢出视图的部分通过 SVG 剪裁路径约束，确保在低版本渲染引擎上无文字残边
 
 ### v1.0.7（2026-10-28）
 - 新增内置中国银行清单（100 家：国有 6 大行、股份制、民营、城商行、农商行、外资在华全部离线内置），选银行直接下拉，输入关键字即可筛选（支持「工行」「微众」等简称匹配），不再需要手动录入

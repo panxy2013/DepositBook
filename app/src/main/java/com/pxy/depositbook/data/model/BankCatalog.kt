@@ -143,8 +143,8 @@ object BankCatalog {
     fun coreName(bankName: String): String = if (ALIASES.containsKey(bankName)) bankName else stripPrefix(bankName).removeSuffix("银行")
 
     /**
-     * 内置银行 → assets/bank_logos 里的矢量 logo 文件名（iconfont 风格彩色图标，本地离线）。
-     * 没有收录的银行（多为 2015 年后的民营银行）回退为彩色文字圆标。
+     * 内置银行 → assets/bank_logos 里的矢量 logo 文件名（纯标志图形版，本地离线）。
+     * 没有收录的银行（多为 2015 年后的民营银行，以及无独立标志图形的 3 家）回退为彩色文字圆标。
      */
     val LOGO_FILES: Map<String, String> = mapOf(
         "北京农商银行" to "beijingnongshangyinhang.group.svg",
@@ -198,7 +198,6 @@ object BankCatalog {
         "南洋商业银行（中国）" to "nanyangshangyeyinhang.group.svg",
         "宁波银行" to "ningboyinhang.group.svg",
         "宁夏银行" to "ningxiayinhang.group.svg",
-        "平安银行" to "pinganyinhang.group.svg",
         "平顶山银行" to "pingdingshanyinhang.group.svg",
         "上海浦东发展银行" to "pufayinhang.group.svg",
         "齐鲁银行" to "qiluyinhang.group.svg",
@@ -219,13 +218,11 @@ object BankCatalog {
         "西安银行" to "xianyinhang.group.svg",
         "兴业银行" to "xingyeyinhang.group.svg",
         "星展银行（中国）" to "xingzhanyinhang.group.svg",
-        "新韩银行（中国）" to "xinhanyinhang.group.svg",
         "渣打银行（中国）" to "zhadayinhang.group.svg",
         "张家口银行" to "zhangjiakouyinhang.group.svg",
         "招商银行" to "zhaoshangyinhang.group.svg",
         "浙商银行" to "zheshangyinhang.group.svg",
         "中国工商银行" to "zhongguogongshangyinhang.group.svg",
-        "中国光大银行" to "zhongguoguangdayinhang.group.svg",
         "中国民生银行" to "zhongguominshengyinhang.group.svg",
         "中国农业银行" to "zhongguonongyeyinhang.group.svg",
         "中国银行" to "zhongguoyinhang.group.svg",
