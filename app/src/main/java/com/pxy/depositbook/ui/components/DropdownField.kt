@@ -101,7 +101,8 @@ fun DropdownField(
 /**
  * 可搜索下拉选择框：输入关键字实时筛选选项（匹配显示名或别名）。
  * 用于内置银行清单一类的长列表。
- */@OptIn(ExperimentalMaterial3Api::class)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchableDropdownField(
     label: String,
@@ -110,6 +111,8 @@ fun SearchableDropdownField(
     placeholder: String = I18n.s("输入关键字筛选", "Type to filter"),
     emptyHint: String = I18n.s("没有匹配项", "No matches"),
     onFocusRequester: FocusRequester? = null,
+    /** 输入名称无精确匹配时，在下拉顶部提供「添加自定义项」入口；参数为当前输入文本，返回菜单显示文字 */
+    customAdd: ((String) -> String)? = null,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -121,6 +124,7 @@ fun SearchableDropdownField(
         item.label.contains(kw, ignoreCase = true) ||
                 item.aliases.any { it.contains(kw, ignoreCase = true) }
     }
+    val allowCustom = customAdd != null && kw.isNotEmpty() && options.none { it.label == kw }
 
     ExposedDropdownMenuBox(
         expanded = expanded,
@@ -143,7 +147,13 @@ fun SearchableDropdownField(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            if (filtered.isEmpty()) {
+            if (allowCustom) {
+                DropdownMenuItem(
+                    text = { Text(customAdd!!(kw)) },
+                    onClick = { onSelect(kw); expanded = false },
+                )
+            }
+            if (filtered.isEmpty() && !allowCustom) {
                 DropdownMenuItem(text = { Text(emptyHint) }, onClick = { expanded = false })
             }
             filtered.forEach { item ->

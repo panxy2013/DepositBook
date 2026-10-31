@@ -2,31 +2,39 @@ package com.pxy.depositbook.ui.screen.list
 
 import com.pxy.depositbook.util.I18n
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -38,13 +46,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pxy.depositbook.DepositApp
 import com.pxy.depositbook.data.entity.Deposit
 import com.pxy.depositbook.data.model.BankCatalog
@@ -212,6 +225,62 @@ fun DepositEditScreen(
     val days = if (daysLong <= 0) 1L else daysLong
     val daily = InterestCalculator.dailyInterest(principalVal, rateVal)
 
+    // 保存三步：1 银行名称 2 产品名称 3 本金；对应栏位左侧显示圆圈序号
+    val saveSteps = listOf(
+        Triple(1, accountName.trim().isNotBlank(), I18n.s("银行名称", "Bank")),
+        Triple(2, productName.isNotBlank(), I18n.s("产品名称", "Product")),
+        Triple(3, principalVal > 0.0, I18n.s("本金（元）", "Principal")),
+    )
+    val pendingSteps = saveSteps.filter { !it.second }
+    val nextStepNum = pendingSteps.firstOrNull()?.first
+
+    val doSave: () -> Unit = {
+        val errors = mutableListOf<String>()
+        // 有漏步时，先提示还需确认的步骤（对照栏位左侧的圆圈数字）
+        if (pendingSteps.isNotEmpty()) {
+            val list = pendingSteps.joinToString("；") { I18n.s("第%d步 %s", "Step %d %s").format(it.first, it.third) }
+            errors.add(I18n.s("请先完成：${list}（对应栏位左侧的圆圈数字）", "Complete first: ${list} (numbers on the left of each field)"))
+        }
+        val r = parseRateInput(rate)
+        if (r == null || r < 0.0) errors.add(I18n.s("年化利率无效，当前：$rate", "Invalid annual rate, current: $rate"))
+        val tc = termCountInput.trim().toLongOrNull()
+        if (tc == null || tc <= 0L) errors.add(I18n.s("存期数值必须大于 0，当前：$termCountInput", "Term length must be > 0, current: $termCountInput"))
+        val realDaysCalc = if (endDate.isBefore(startDate)) 0L else ChronoUnit.DAYS.between(startDate, endDate)
+        if (realDaysCalc <= 0) errors.add(I18n.s("到期日期必须晚于存入日期（存入：$startDate，到期：$endDate）", "Maturity must be after start (start: $startDate, maturity: $endDate)"))
+
+        if (errors.isNotEmpty()) {
+            errorMsg = errors.joinToString("\n")
+        } else {
+            val now = System.currentTimeMillis()
+            val finalDays = if (realDaysCalc <= 0) 1L else realDaysCalc
+            val finalEnd = if (realDaysCalc <= 0) startDate.plusDays(1) else endDate
+            val record = Deposit(
+                id = origin?.id ?: 0L,
+                accountName = accountName.trim(),
+                productName = productName.trim().ifBlank { null },
+                principal = principalVal,
+                annualRate = (r!! / 100.0),
+                startDate = DateUtils.toMillis(startDate),
+                endDate = DateUtils.toMillis(finalEnd),
+                termDays = finalDays.toInt(),
+                note = note.trim().ifBlank { null },
+                isActive = origin?.isActive ?: true,
+                createdAt = origin?.createdAt ?: now,
+                updatedAt = now,
+            )
+            scope.launch {
+                try {
+                    repository.save(record)
+                    android.widget.Toast.makeText(context, if (origin == null) I18n.s("新增成功", "Added") else I18n.s("修改成功", "Saved"), android.widget.Toast.LENGTH_SHORT).show()
+                    onBack()
+                } catch (e: Exception) {
+                    android.util.Log.d("DepositBook", "save failed id=${record.id}", e)
+                    android.widget.Toast.makeText(context, I18n.s("保存失败：${e.message ?: e.javaClass.simpleName}", "Save failed: ${e.message ?: e.javaClass.simpleName}"), android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -223,134 +292,165 @@ fun DepositEditScreen(
                 },
             )
         },
+        floatingActionButton = {
+            // 侧边浮动保存：不受键盘遮挡（imePadding 抬升）；旁边提示下一步序号
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    tonalElevation = 3.dp,
+                ) {
+                    Row(
+                        Modifier.padding(start = 8.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        if (nextStepNum != null) {
+                            val label = pendingSteps.first { it.first == nextStepNum }.third
+                            StepBadge(num = nextStepNum, done = false, highlight = true)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                I18n.s("下一步 %d %s", "Next %d %s").format(nextStepNum, label),
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                maxLines = 1,
+                            )
+                        } else {
+                            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                I18n.s("可以保存", "Ready to save"),
+                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.imePadding()) {
+                    FloatingActionButton(
+                        onClick = { doSave() },
+                        shape = CircleShape,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ) {
+                        Icon(Icons.Filled.Check, I18n.s("保存", "Save"))
+                    }
+                }
+            }
+        },
     ) { padding ->
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // 银行选择：内置清单（带图标）+ 用户自定义银行，输入关键字筛选
             // 排序：有存单的银行在前（最近存入的最前），其余按原顺序
-            WithChineseImeHint {
-                SearchableDropdownField(
-                    label = I18n.s("银行名称", "Bank"),
-                    value = accountName,
-                    options = remember(userBanks, depositBankOrder) {
-                        (userBanks + BankCatalog.BANKS.filterNot { b -> userBanks.contains(b) })
-                            .sortedWith(compareBy { bank ->
-                                depositBankOrder.indexOf(bank).let { if (it == -1) Int.MAX_VALUE else it }
-                            })
-                            .map { b ->
-                                val icon: (@Composable () -> Unit)? = if (BankCatalog.isBuiltIn(b)) {
-                                    { BankIcon(b) }
-                                } else null
-                                DropdownItem(
-                                    b,
-                                    icon = icon,
-                                    aliases = BankCatalog.ALIASES.filterValues { it == b }.keys.toList(),
-                                )
-                            }
-                    },
-                    placeholder = I18n.s("输入关键字筛选，如「工行」「微众」", "Type to filter, e.g. ICBC"),
-                    onFocusRequester = null,
-                    onSelect = { accountName = it; productFocus.requestFocus() },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // 手动添加自定义银行（不带图标）
-            var showAddBank by remember { mutableStateOf(false) }
-            TextButton(onClick = { showAddBank = !showAddBank }) {
-                Text(
-                    if (showAddBank) I18n.s("收起自定义银行", "Hide custom bank")
-                    else I18n.s("没有找到？手动添加银行（自定义银行不带图标）", "Not listed? Add a custom bank (no icon)"),
-                )
-            }
-            if (showAddBank) {
-                var newBank by remember { mutableStateOf("") }
-                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    WithChineseImeHint(modifier = Modifier.weight(1f)) {
-                        OutlinedTextField(
-                            value = newBank,
-                            onValueChange = { newBank = it },
-                            placeholder = { Text(I18n.s("输入银行名称", "Bank name"), fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize }) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    androidx.compose.material3.TextButton(
-                        onClick = {
-                            val name = newBank.trim()
-                            if (name.isNotEmpty()) {
-                                optionsStore.addBank(name)
-                                userBanks = optionsStore.banks()
-                                accountName = name
-                                newBank = ""
-                            }
+            // ① 银行名称：左侧步骤圆圈；提示文字「选择存款银行」
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                StepBadge(num = 1, done = accountName.trim().isNotBlank(), highlight = nextStepNum == 1)
+                Spacer(Modifier.width(8.dp))
+                WithChineseImeHint(modifier = Modifier.weight(1f)) {
+                    SearchableDropdownField(
+                        label = I18n.s("银行名称", "Bank"),
+                        value = accountName,
+                        options = remember(userBanks, depositBankOrder) {
+                            (userBanks + BankCatalog.BANKS.filterNot { b -> userBanks.contains(b) })
+                                .sortedWith(compareBy { bank ->
+                                    depositBankOrder.indexOf(bank).let { if (it == -1) Int.MAX_VALUE else it }
+                                })
+                                .map { b ->
+                                    val icon: (@Composable () -> Unit)? = if (BankCatalog.isBuiltIn(b)) {
+                                        { BankIcon(b) }
+                                    } else null
+                                    DropdownItem(
+                                        b,
+                                        icon = icon,
+                                        aliases = BankCatalog.ALIASES.filterValues { it == b }.keys.toList(),
+                                    )
+                                }
                         },
-                        enabled = newBank.isNotBlank(),
-                    ) { Text(I18n.s("添加", "Add")) }
+                        placeholder = I18n.s("选择存款银行", "Select bank"),
+                        customAdd = { name -> I18n.s("添加自定义银行「${name}」", "Add custom bank \"$name\"") },
+                        onSelect = { sel ->
+                            accountName = sel
+                            // 非内置银行 → 记入用户自定义银行清单
+                            if (!BankCatalog.isBuiltIn(sel) && userBanks.none { it == sel }) {
+                                optionsStore.addBank(sel)
+                                userBanks = optionsStore.banks()
+                            }
+                            productFocus.requestFocus()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
 
-            // 产品选择：选择后自动带出默认存期；预置整存整取不允许更改存期
-            WithChineseImeHint {
-                SearchableDropdownField(
-                label = I18n.s("产品名称", "Product"),
-                value = productName,
-                options = productItems.map { DropdownItem(it.name) },
-                placeholder = I18n.s("输入关键字筛选", "Type to filter"),
-                onFocusRequester = productFocus,
-                onSelect = { sel ->
-                    productName = sel
-                    val def = productDefs.firstOrNull { it.name == sel }
-                    if (def != null && def.name.contains("活期") && def.termDays == null) {
-                        // 用户自建的「活期」没填默认存期 → 按活期惯例默认 10 年（可修改）
-                        termUnit = "Y"
-                        termCountInput = "10"
-                        termLocked = false
-                    } else if (def?.termDays != null) {
-                        val days = def.termDays!!
-                        when {
-                            days > 0 && days % 365L == 0L -> {
+            // ② 产品名称：选择后自动带出默认存期；预置整存整取不允许更改存期
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                StepBadge(num = 2, done = productName.isNotBlank(), highlight = nextStepNum == 2)
+                Spacer(Modifier.width(8.dp))
+                WithChineseImeHint(modifier = Modifier.weight(1f)) {
+                    SearchableDropdownField(
+                        label = I18n.s("产品名称", "Product"),
+                        value = productName,
+                        options = productItems.map { DropdownItem(it.name) },
+                        placeholder = I18n.s("输入关键字筛选", "Type to filter"),
+                        onFocusRequester = productFocus,
+                        onSelect = { sel ->
+                            productName = sel
+                            val def = productDefs.firstOrNull { it.name == sel }
+                            if (def != null && def.name.contains("活期") && def.termDays == null) {
+                                // 用户自建的「活期」没填默认存期 → 按活期惯例默认 10 年（可修改）
                                 termUnit = "Y"
-                                termCountInput = (days / 365L).toString()
+                                termCountInput = "10"
+                                termLocked = false
+                            } else if (def?.termDays != null) {
+                                val days = def.termDays!!
+                                when {
+                                    days > 0 && days % 365L == 0L -> {
+                                        termUnit = "Y"
+                                        termCountInput = (days / 365L).toString()
+                                    }
+                                    days % 30L == 0L -> {
+                                        termUnit = "M"
+                                        termCountInput = (days / 30L).toString()
+                                    }
+                                    else -> {
+                                        termUnit = "D"
+                                        termCountInput = days.toString()
+                                    }
+                                }
                             }
-                            days % 30L == 0L -> {
-                                termUnit = "M"
-                                termCountInput = (days / 30L).toString()
-                            }
-                            else -> {
-                                termUnit = "D"
-                                termCountInput = days.toString()
-                            }
-                        }
-                    }
-                    termLocked = def?.let { it.termDays != null && !it.allowModify } ?: false
-                    principalFocus.requestFocus()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                )
+                            termLocked = def?.let { it.termDays != null && !it.allowModify } ?: false
+                            principalFocus.requestFocus()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
 
-            OutlinedTextField(
-                value = principal,
-                onValueChange = { principal = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text(I18n.s("本金（元）", "Principal (CNY)")) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(principalFocus),
-            )
+            // ③ 本金（元）：数字键盘，按「完成」收起键盘
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                StepBadge(num = 3, done = principalVal > 0.0, highlight = nextStepNum == 3)
+                Spacer(Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = principal,
+                    onValueChange = { principal = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text(I18n.s("本金（元）", "Principal (CNY)")) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(principalFocus),
+                )
+            }
 
             OutlinedTextField(
                 value = rate,
@@ -432,60 +532,6 @@ fun DepositEditScreen(
                 label = { Text(I18n.s("备注（可选）", "Note (optional)")) },
                 modifier = Modifier.fillMaxWidth(),
             )
-
-            Spacer(Modifier.height(8.dp))
-
-            Button(
-                onClick = {
-                    val errors = mutableListOf<String>()
-                    if (accountName.trim().isBlank()) errors.add(I18n.s("请填写或选择银行名称", "Select or enter a bank name"))
-                    val p = parseAmountInput(principal)
-                    if (p == null || p <= 0.0) errors.add(I18n.s("本金必须大于 0，当前：$principal", "Principal must be > 0, current: $principal"))
-                    val r = parseRateInput(rate)
-                    if (r == null || r < 0.0) errors.add(I18n.s("年化利率无效，当前：$rate", "Invalid annual rate, current: $rate"))
-                    val tc = termCountInput.trim().toLongOrNull()
-                    if (tc == null || tc <= 0L) errors.add(I18n.s("存期数值必须大于 0，当前：$termCountInput", "Term length must be > 0, current: $termCountInput"))
-                    val realDaysCalc = if (endDate.isBefore(startDate)) 0L else ChronoUnit.DAYS.between(startDate, endDate)
-                    if (realDaysCalc <= 0) errors.add(I18n.s("到期日期必须晚于存入日期（存入：$startDate，到期：$endDate）", "Maturity must be after start (start: $startDate, maturity: $endDate)"))
-
-                    if (errors.isNotEmpty()) {
-                        errorMsg = errors.joinToString("\n")
-                        return@Button
-                    }
-
-                    val now = System.currentTimeMillis()
-                    val finalDays = if (realDaysCalc <= 0) 1L else realDaysCalc
-                    val finalEnd = if (realDaysCalc <= 0) startDate.plusDays(1) else endDate
-                    val record = Deposit(
-                        id = origin?.id ?: 0L,
-                        accountName = accountName.trim(),
-                        productName = productName.trim().ifBlank { null },
-                        principal = p!!,
-                        annualRate = (r!! / 100.0),
-                        startDate = DateUtils.toMillis(startDate),
-                        endDate = DateUtils.toMillis(finalEnd),
-                        termDays = finalDays.toInt(),
-                        note = note.trim().ifBlank { null },
-                        isActive = origin?.isActive ?: true,
-                        createdAt = origin?.createdAt ?: now,
-                        updatedAt = now,
-                    )
-                    scope.launch {
-                        try {
-                            repository.save(record)
-                            android.widget.Toast.makeText(context, if (origin == null) I18n.s("新增成功", "Added") else I18n.s("修改成功", "Saved"), android.widget.Toast.LENGTH_SHORT).show()
-                            onBack()
-                        } catch (e: Exception) {
-                            android.util.Log.d("DepositBook", "save failed id=${record.id}", e)
-                            android.widget.Toast.makeText(context, I18n.s("保存失败：${e.message ?: e.javaClass.simpleName}", "Save failed: ${e.message ?: e.javaClass.simpleName}"), android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    }
-                },
-                enabled = true,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(I18n.s("保存", "Save"))
-            }
         }
     }
 
@@ -522,6 +568,49 @@ fun DepositEditScreen(
 /** 存期单位：内部固定代码 + 按语言显示 */
 private data class UnitOption(val code: String, val zh: String, val en: String) {
     fun display(): String = com.pxy.depositbook.util.I18n.s(zh, en)
+}
+
+/**
+ * 步骤圆圈序号（22dp）：
+ * - 已完成：淡绿底 + 对勾
+ * - 当前（highlight）：主色实底 + 白字
+ * - 未完成：透明底 + 灰色描边数字
+ */
+@Composable
+private fun StepBadge(num: Int, done: Boolean, highlight: Boolean) {
+    val bg = when {
+        done -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
+        highlight -> MaterialTheme.colorScheme.primary
+        else -> Color.Transparent
+    }
+    val fg = when {
+        done -> MaterialTheme.colorScheme.tertiary
+        highlight -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Box(
+        modifier = Modifier
+            .size(22.dp)
+            .clip(CircleShape)
+            .background(bg)
+            .then(
+                if (!done && !highlight) {
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (done) {
+            Icon(Icons.Filled.Check, null, tint = fg, modifier = Modifier.size(13.dp))
+        } else {
+            Text(
+                num.toString(),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = fg,
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

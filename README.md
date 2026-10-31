@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.10 | [deposit-book-v1.0.10.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.10/deposit-book-v1.0.10.apk) |
 | v1.0.9 | [deposit-book-v1.0.9.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.9/deposit-book-v1.0.9.apk) |
 | v1.0.8 | [deposit-book-v1.0.8.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.8/deposit-book-v1.0.8.apk) |
 | v1.0.7 | [deposit-book-v1.0.7.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.7/deposit-book-v1.0.7.apk) |
@@ -53,6 +54,14 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.10（2026-10-31）
+- **新增存款全面改造**：
+  - 银行/产品/本金三栏左侧显示步骤圆圈序号（1→2→3），完成变对勾、当前步骤高亮
+  - 右下角浮动保存按钮，不再被键盘遮挡；旁边实时提示「下一步 第N步 产品名称」
+  - 有漏步时点保存会明确列出需要完成的步骤（对应栏位圆圈数字）
+  - 顶部留白去除；删除「手动添加银行」区块（输入新银行名称后，下拉顶部出现「添加自定义银行」，选中自动记住）
+  - 银行栏提示文字改为「选择存款银行」；下一步提示固定一行显示
 
 ### v1.0.9（2026-10-31）
 - **隐私与安全锁默认关闭**：新装用户进入总览直接显示金额（设置里仍可随时开启）
