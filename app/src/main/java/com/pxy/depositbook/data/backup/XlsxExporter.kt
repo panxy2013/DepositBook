@@ -15,27 +15,52 @@ import java.util.zip.ZipOutputStream
  */
 object XlsxExporter {
 
-    fun export(deposits: List<Deposit>, today: LocalDate = DateUtils.today()): ByteArray {
+    fun export(deposits: List<Deposit>, today: LocalDate = DateUtils.today()): ByteArray =
+        exportSheets(listOf(I18n.s("总账", "General Ledger") to deposits), today)
+
+    /**
+     * 多账户导出：每个账户一个工作表（sheet 名 = 账户昵称）。
+     * 表头与原「总账」一致，每个 sheet 末尾自己合计。
+     */
+    fun exportSheets(sheets: List<Pair<String, List<Deposit>>>, today: LocalDate = DateUtils.today()): ByteArray {
+        val list = sheets.ifEmpty { listOf(I18n.s("总账", "General Ledger") to emptyList()) }
+        // Excel 限制：sheet 名 ≤31 字符，不能含 []:*?/\，且不区分大小写去重
+        val used = mutableSetOf<String>()
+        _sheetNames = list.map { (raw, _) ->
+            var base = Regex("[\\[\\]:*?/\\\\]").replace(raw, "_").trim().take(31)
+            if (base.isEmpty()) base = I18n.s("总账", "General Ledger")
+            var name = base
+            var k = 2
+            while (used.contains(name.lowercase())) {
+                val suf = "_$k"
+                name = base.take(31 - suf.length) + suf
+                k++
+            }
+            used.add(name.lowercase())
+            name
+        }
         val out = ByteArrayOutputStream()
         ZipOutputStream(out).use { zip ->
 
             zip.putNextEntry(ZipEntry("[Content_Types].xml"))
-            zip.write(CONTENT_TYPES.toByteArray(Charsets.UTF_8))
+            zip.write(contentTypesXml(list.size).toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("_rels/.rels"))
             zip.write(ROOT_RELS.toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("xl/workbook.xml"))
-            zip.write(workbookXml().toByteArray(Charsets.UTF_8))
+            zip.write(workbookXml(list.size).toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("xl/_rels/workbook.xml.rels"))
-            zip.write(WORKBOOK_RELS.toByteArray(Charsets.UTF_8))
+            zip.write(workbookRelsXml(list.size).toByteArray(Charsets.UTF_8))
 
             zip.putNextEntry(ZipEntry("xl/styles.xml"))
             zip.write(STYLES.toByteArray(Charsets.UTF_8))
 
-            zip.putNextEntry(ZipEntry("xl/worksheets/sheet1.xml"))
-            zip.write(sheetXml(deposits, today).toByteArray(Charsets.UTF_8))
+            list.forEachIndexed { index, (_, deposits) ->
+                zip.putNextEntry(ZipEntry("xl/worksheets/sheet${index + 1}.xml"))
+                zip.write(sheetXml(deposits, today).toByteArray(Charsets.UTF_8))
+            }
         }
         return out.toByteArray()
     }
@@ -187,6 +212,18 @@ object XlsxExporter {
 <Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
 </Types>"""
 
+    /** 多 sheet 时按数量生成 Override（sheet1..sheetN） */
+    private fun contentTypesXml(n: Int): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+""" + (1..n).joinToString("\n") { i ->
+        """<Override PartName="/xl/worksheets/sheet$i.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>"""
+    } + """
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>"""
+
     private const val ROOT_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
@@ -197,11 +234,26 @@ object XlsxExporter {
 <sheets><sheet name="${I18n.s("总账", "General Ledger")}" sheetId="1" r:id="rId1"/></sheets>
 </workbook>""".trimIndent()
 
-    private const val WORKBOOK_RELS = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    private fun workbookXml(n: Int): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets>""" + (1..n).joinToString("") { i ->
+        """<sheet name="${escape(sheetNameAt(i - 1))}" sheetId="$i" r:id="rId$i"/>"""
+    } + """</sheets>
+</workbook>"""
+
+    /** workbook rels：rIdi -> sheeti.xml；styles 固定 rId(n+1) */
+    private fun workbookRelsXml(n: Int): String = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+""" + (1..n).joinToString("\n") { i ->
+        """<Relationship Id="rId$i" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet$i.xml"/>"""
+    } + """
+<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>"""
+
+    private var _sheetNames: List<String> = emptyList()
+
+    private fun sheetNameAt(i: Int): String =
+        _sheetNames.getOrNull(i) ?: "总账$i"
 
     private const val STYLES = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">

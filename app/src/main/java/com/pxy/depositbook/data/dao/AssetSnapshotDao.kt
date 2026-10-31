@@ -28,4 +28,7 @@ interface AssetSnapshotDao {
 
     @Query("DELETE FROM asset_snapshot")
     suspend fun clearAll()
+
+    @Query("DELETE FROM asset_snapshot WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: Long)
 }

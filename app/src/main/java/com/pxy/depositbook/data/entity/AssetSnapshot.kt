@@ -1,5 +1,6 @@
 package com.pxy.depositbook.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -12,11 +13,13 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "asset_snapshot",
-    indices = [Index(value = ["day"], unique = true)],
+    indices = [Index(value = ["day", "profileId"], unique = true)],
 )
 data class AssetSnapshot(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    /** 快照日期，格式 yyyy-MM-dd，每天一条（当天多次记录取最新值） */
+    /** 归属账户（多账户） */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1L,
+    /** 快照日期，格式 yyyy-MM-dd，每天每账户一条（当天多次记录取最新值） */
     val day: String,
     /** 在存本金总数 */
     val totalPrincipal: Double,

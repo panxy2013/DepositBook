@@ -1,5 +1,6 @@
 package com.pxy.depositbook.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -9,6 +10,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "deposit")
 data class Deposit(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** 归属账户（多账户）。0 = 未设置（新建时由仓库层打上当前账户）；迁移后旧数据在库里默认 1 */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 0L,
     /** 理财账户 / 银行名称 */
     val accountName: String,
     /** 归属人（可选） */

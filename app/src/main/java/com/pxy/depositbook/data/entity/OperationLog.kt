@@ -1,5 +1,6 @@
 package com.pxy.depositbook.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -9,6 +10,8 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "operation_log")
 data class OperationLog(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** 归属账户（多账户） */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1L,
     /** 关联的存款 id，删除后仍保留 */
     val depositId: Long? = null,
     /** CREATE / UPDATE / DELETE / SETTLE / RESTORE / IMPORT */

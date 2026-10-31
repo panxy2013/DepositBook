@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.12 | [deposit-book-v1.0.12.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.12/deposit-book-v1.0.12.apk) |
 | v1.0.11 | [deposit-book-v1.0.11.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.11/deposit-book-v1.0.11.apk) |
 | v1.0.10 | [deposit-book-v1.0.10.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.10/deposit-book-v1.0.10.apk) |
 | v1.0.9 | [deposit-book-v1.0.9.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.9/deposit-book-v1.0.9.apk) |
@@ -22,6 +23,7 @@
 
 **核心功能**
 
+- 👥 **多账户**：创建多个账户分别记账，头像可自定义，数据完全隔离，一键切换
 - 📒 **存款记录**：记录银行、产品、本金、年化利率、存入/到期日期，利息自动按「本金 × 年化 ÷ 365 × 已存天数」计算，与 Excel 账本口径一致
 - 📊 **统计分析**：总本金、总利息一目了然
 - 📅 **存入/到期日历**：月视图、年视图自由切换，轻点日期即可查看当天存入和到期的每一笔存款，支持「回到今天」快速定位
@@ -41,6 +43,7 @@ Your savings are scattered across banks and products. How much interest have you
 
 **Key Features**
 
+- 👥 **Multiple Accounts** — Keep separate ledgers with custom avatars and fully isolated data; switch with one tap
 - 📒 **Deposit Records** — Track bank, product, principal, annual rate, and deposit/maturity dates. Interest is calculated as *principal × annual rate ÷ 365 × days held*, consistent with your Excel spreadsheet
 - 📊 **Statistics** — Total principal and interest at a glance
 - 📅 **Deposit & Maturity Calendar** — Switch between month view and year view; tap any date to see every deposit that starts or matures that day
@@ -55,6 +58,17 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.12（2026-11-01）
+- **新增「多账户」功能**：可以创建多个账户（如「我的存款」「家人的存款」），分别记账
+  - 总览页左上角显示当前账户头像，点击即可切换账户；切换后所有页面的存款、日志、统计、资产历史全部跟随
+  - 账户数据完全隔离：存款、操作日志、资产历史快照各记各的；到期提醒会检查所有账户
+  - **自定义头像**：设置页点击头像可从相册上传照片；没有自定义头像时显示系统默认设计的头像（渐变圆形 + 昵称首字，按昵称固定颜色）
+  - 设置页新增「账户」管理组：新建账户、重命名、删除账户（至少保留一个账户；删除账户会同时删除其全部数据，请先备份）
+- **导入导出支持多账户**：
+  - JSON 备份升级为 v2 格式：按账户分组保存，同时保留全部存款，兼容旧版本 App 读取
+  - 导出 Excel 时每个账户一个工作表（sheet 名 = 账户昵称）
+  - 导入 JSON/Excel 自动按账户归位；旧版单账户备份仍可导入（进入当前账户）
 
 ### v1.0.11（2026-11-01）
 - **新增存款步骤链延伸到 6 步**：1 银行 → 2 存款期限 → 3 本金 → 4 年化利率 → 5 存入日期 → 6 存期

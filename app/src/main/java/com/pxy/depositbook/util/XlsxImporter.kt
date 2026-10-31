@@ -34,17 +34,43 @@ object XlsxImporter {
 
     fun parse(pathOrBytes: java.io.File): ImportResult = parse(pathOrBytes.readBytes())
 
+    /**
+     * 全量解析：返回所有含「总账」表头的 sheet（多账户恢复用，sheet 名 = 账户昵称）。
+     */
+    fun parseAll(bytes: ByteArray): List<ImportResult> {
+        val (shared, sheets, order) = readWorkbook(bytes)
+        // sheetN.xml 对应 workbook.xml 顺序里的第 N 个 sheet 名
+        return sheets.keys
+            .sortedBy { it.removePrefix("xl/worksheets/sheet").removeSuffix(".xml").toIntOrNull() ?: Int.MAX_VALUE }
+            .mapNotNull { key ->
+                val n = key.removePrefix("xl/worksheets/sheet").removeSuffix(".xml").toIntOrNull()
+                    ?: return@mapNotNull null
+                val displayName = order.getOrNull(n - 1) ?: "Sheet$n"
+                parseOneSheet(xml = sheets[key] ?: return@mapNotNull null, shared = shared, sheetName = displayName)
+            }
+            // 只保留成功识别出「总账」表头且真的读到了存款的 sheet
+            .filter { it.sheetName.isNotBlank() && it.deposits.isNotEmpty() }
+    }
+
     fun parse(bytes: ByteArray): ImportResult {
+        val all = parseAll(bytes)
+        if (all.isEmpty()) return ImportResult(emptyList(), 0, "")
+        // 优先名字带「总账 / General Ledger」的，否则第一个（旧行为兼容）
+        return all.firstOrNull { it.sheetName.contains("总账") || it.sheetName.equals("General Ledger", ignoreCase = true) }
+            ?: all.first()
+    }
+
+    private fun readWorkbook(bytes: ByteArray): Triple<List<String>, Map<String, String>, List<String>> {
         val shared = mutableListOf<String>()
-        val sheets = linkedMapOf<String, String>() // sheetName -> xml
-        var workbookSheetOrder = mutableListOf<String>()
+        val sheets = linkedMapOf<String, String>() // "xl/worksheets/sheetN.xml" -> xml
+        var order = mutableListOf<String>()
 
         ZipInputStream(bytes.inputStream()).use { zip ->
             var entry: ZipEntry? = zip.nextEntry
             while (entry != null) {
                 when {
                     entry.name == "xl/sharedStrings.xml" -> shared += parseSharedStrings(zip.readBytes())
-                    entry.name == "xl/workbook.xml" -> workbookSheetOrder = parseSheetOrder(zip.readBytes())
+                    entry.name == "xl/workbook.xml" -> order = parseSheetOrder(zip.readBytes())
                     entry.name.startsWith("xl/worksheets/sheet") && entry.name.endsWith(".xml") ->
                         sheets[entry.name] = zip.readBytes().toString(Charsets.UTF_8)
                 }
@@ -52,22 +78,16 @@ object XlsxImporter {
                 entry = zip.nextEntry
             }
         }
+        return Triple(shared, sheets, order)
+    }
 
-        // 优先取名为「总账 / General Ledger」的 sheet，否则取第一个
-        val targetEntry = if (workbookSheetOrder.isNotEmpty()) {
-            val idx = workbookSheetOrder.indexOfFirst { it.contains("总账") || it.equals("General Ledger", ignoreCase = true) }
-            val name = if (idx >= 0) "xl/worksheets/sheet${idx + 1}.xml" else "xl/worksheets/sheet1.xml"
-            name
-        } else "xl/worksheets/sheet1.xml"
-
-        val xml = sheets[targetEntry] ?: sheets.values.firstOrNull()
-            ?: return ImportResult(emptyList(), 0, "")
-
+    /** 解析单个 sheet；不是「总账」结构（无表头/缺列）时返回 null */
+    private fun parseOneSheet(xml: String, shared: List<String>, sheetName: String): ImportResult? {
         val rows = parseSheetRows(xml, shared)
-        if (rows.isEmpty()) return ImportResult(emptyList(), 0, "")
+        if (rows.isEmpty()) return null
 
         val headerIndex = rows.indexOfFirst { row -> row.any { it.contains("本金") || it.contains("Principal", ignoreCase = true) } }
-        if (headerIndex < 0) return ImportResult(emptyList(), rows.size, "")
+        if (headerIndex < 0) return null
 
         val header = rows[headerIndex]
         val colMap = mutableMapOf<String, Int>()
@@ -77,8 +97,8 @@ object XlsxImporter {
             }
         }
 
-        val accountCol = colMap["account"] ?: return ImportResult(emptyList(), rows.size, "")
-        val principalCol = colMap["principal"] ?: return ImportResult(emptyList(), rows.size, "")
+        val accountCol = colMap["account"] ?: return null
+        if (colMap["principal"] == null) return null
         val rateCol = colMap["rate"]
         val startCol = colMap["start"]
         val endCol = colMap["end"]
@@ -117,7 +137,7 @@ object XlsxImporter {
                 endDate = end,
             )
         }
-        return ImportResult(list, skipped, "")
+        return ImportResult(list, skipped, sheetName)
     }
 
     private fun parseSharedStrings(bytes: ByteArray): List<String> {

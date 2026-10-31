@@ -2,6 +2,7 @@ package com.pxy.depositbook.ui.screen.home
 
 import com.pxy.depositbook.util.I18n
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,11 +47,16 @@ import com.pxy.depositbook.viewmodel.HomeViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.platform.LocalContext
 import com.pxy.depositbook.DepositApp
+import com.pxy.depositbook.ui.components.AccountNameDialog
+import com.pxy.depositbook.ui.components.AccountSwitchDialog
+import com.pxy.depositbook.ui.components.ProfileAvatar
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -74,6 +80,15 @@ fun HomeScreen(
     // 隐私模式：默认值来自设置页，可随时点眼睛切换（只作用于总览区，30天内到期笔数除外）
     var privacy by remember { mutableStateOf(options.privacyDefault()) }
 
+    // 多账户：当前账户 + 切换弹窗
+    val accounts = remember { (context.applicationContext as DepositApp).accountStore }
+    val profiles by accounts.profiles.collectAsStateWithLifecycle()
+    val currentProfileId by accounts.currentId.collectAsStateWithLifecycle()
+    val currentProfile = profiles.firstOrNull { it.id == currentProfileId }
+    var showSwitch by remember { mutableStateOf(false) }
+    var showCreate by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Scaffold(
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -95,6 +110,14 @@ fun HomeScreen(
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 账户头像：点击弹出切换账户
+                    ProfileAvatar(
+                        profile = currentProfile,
+                        accounts = accounts,
+                        size = 32.dp,
+                        modifier = Modifier.clickable(onClick = { showSwitch = true }),
+                    )
+                    Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(
                             I18n.s("存款总览", "Deposit Overview"),
@@ -220,5 +243,36 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    // 账户切换弹窗
+    if (showSwitch) {
+        AccountSwitchDialog(
+            accounts = accounts,
+            profiles = profiles,
+            currentId = currentProfileId,
+            onPick = {
+                accounts.switchTo(it)
+                showSwitch = false
+            },
+            onCreateClick = {
+                showSwitch = false
+                showCreate = true
+            },
+            onManageClick = { showSwitch = false }, // 用户可手动去设置页管理账户
+            onDismiss = { showSwitch = false },
+        )
+    }
+
+    // 新建账户弹窗
+    if (showCreate) {
+        AccountNameDialog(
+            title = I18n.s("新建账户", "New account"),
+            onConfirm = { name ->
+                showCreate = false
+                scope.launch { accounts.add(name) }
+            },
+            onDismiss = { showCreate = false },
+        )
     }
 }

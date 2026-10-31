@@ -97,6 +97,16 @@ class OptionsStore(context: Context) {
     /** 隐私模式默认状态：总览页金额是否默认隐藏（默认关闭） */
     fun privacyDefault(): Boolean = prefs.getBoolean("privacy_default", false)
 
+    /** 当前使用的账户 id（多账户切换记住） */
+    fun currentProfileId(): Long {
+        val id = prefs.getLong("current_profile_id", 1L)
+        return if (id > 0) id else 1L
+    }
+
+    fun setCurrentProfileId(id: Long) {
+        prefs.edit().putLong("current_profile_id", id).apply()
+    }
+
     fun setPrivacyDefault(on: Boolean) {
         prefs.edit().putBoolean("privacy_default", on).apply()
     }

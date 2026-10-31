@@ -4,14 +4,24 @@ import androidx.room.PrimaryKey
 import com.google.gson.GsonBuilder
 
 /**
- * 备份文件结构。带 schemaVersion，方便以后升级格式时兼容旧文件。
+ * 备份文件结构。
+ * - schemaVersion = 2：多账户。accounts[] 每个账户带自己的存款；
+ *   同时顶层 deposits/logs 镜像全部数据，旧版 App 仍可读。
+ * - schemaVersion = 1：单账户（deposits/logs 导入到当前账户）。
  */
 data class BackupFile(
-    @PrimaryKey val schemaVersion: Int = 1,
+    @PrimaryKey val schemaVersion: Int = 2,
     val exportedAt: Long = System.currentTimeMillis(),
     val appVersion: String = "",
+    val accounts: List<AccountDto> = emptyList(),
     val deposits: List<DepositDto> = emptyList(),
     val logs: List<LogDto> = emptyList(),
+)
+
+data class AccountDto(
+    val name: String = "",
+    val sortOrder: Int = 0,
+    val deposits: List<DepositDto> = emptyList(),
 )
 
 data class DepositDto(
@@ -45,9 +55,10 @@ object BackupCodec {
     fun encodeBackup(file: BackupFile): String = gson.toJson(file)
 
     /**
-     * 解析备份文件，同时兼容两种格式：
-     * 1. 新版：{"schemaVersion":1,"deposits":[...],"logs":[...]}
-     * 2. 旧版：直接是 [ {...}, {...} ] 的存款数组
+     * 解析备份文件，兼容三种格式：
+     * 1. v2 新版：{"schemaVersion":2,"accounts":[...],"deposits":[...],"logs":[...]}
+     * 2. v1：{"schemaVersion":1,"deposits":[...],"logs":[...]}
+     * 3. 更旧：直接是 [ {...}, {...} ] 的存款数组
      */
     fun decodeBackup(json: String): BackupFile? {
         val text = json.trim()
@@ -55,13 +66,13 @@ object BackupCodec {
 
         return try {
             if (text.startsWith("[")) {
-                // 旧版：纯存款数组
+                // 更旧：纯存款数组
                 val arr = gson.fromJson(text, Array<DepositDto>::class.java)
                 BackupFile(deposits = arr?.toList() ?: emptyList())
             } else if (text.startsWith("{")) {
                 val obj = gson.fromJson(text, BackupFile::class.java) ?: return null
-                // 只要文件里确实有 deposits 字段就认作有效备份
-                if (text.contains("\"deposits\"")) obj else null
+                // 只要文件里确实有 deposits 或 accounts 字段就认作有效备份
+                if (text.contains("\"deposits\"") || text.contains("\"accounts\"")) obj else null
             } else {
                 null
             }

@@ -20,4 +20,7 @@ interface OperationLogDao {
 
     @Query("DELETE FROM operation_log")
     suspend fun clear()
+
+    @Query("DELETE FROM operation_log WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: Long)
 }

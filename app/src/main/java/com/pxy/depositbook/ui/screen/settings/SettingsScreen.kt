@@ -25,7 +25,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Notifications
@@ -55,19 +57,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pxy.depositbook.BuildConfig
 import com.pxy.depositbook.DepositApp
 import com.pxy.depositbook.LockManager
+import com.pxy.depositbook.data.backup.AccountDto
 import com.pxy.depositbook.data.backup.BackupCodec
 import com.pxy.depositbook.data.backup.BackupFile
 import com.pxy.depositbook.data.backup.DepositDto
 import com.pxy.depositbook.data.backup.XlsxExporter
 import com.pxy.depositbook.data.entity.Deposit
+import com.pxy.depositbook.data.entity.Profile
 import com.pxy.depositbook.data.prefs.OptionsStore
 import com.pxy.depositbook.data.prefs.ProductDef
 import com.pxy.depositbook.data.repo.DepositRepository
+import com.pxy.depositbook.ui.components.AccountDeleteDialog
+import com.pxy.depositbook.ui.components.AccountNameDialog
 import com.pxy.depositbook.ui.components.PatternLock
 import com.pxy.depositbook.ui.components.PinLock
+import com.pxy.depositbook.ui.components.ProfileAvatar
 import com.pxy.depositbook.util.XlsxImporter
 import com.pxy.depositbook.worker.ReminderScheduler
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +104,25 @@ fun SettingsScreen(repository: DepositRepository) {
         message = text
         android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show()
     }
+
+    // 多账户管理
+    val accounts = repository.accounts
+    val profiles by accounts.profiles.collectAsStateWithLifecycle()
+    val currentProfileId by accounts.currentId.collectAsStateWithLifecycle()
+    var newAccountDialog by remember { mutableStateOf(false) }
+    var editingProfile by remember { mutableStateOf<Profile?>(null) }
+    var deletingProfile by remember { mutableStateOf<Profile?>(null) }
+    var pendingAvatarProfileId by remember { mutableStateOf<Long?>(null) }
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val pid = pendingAvatarProfileId
+        pendingAvatarProfileId = null
+        if (uri != null && pid != null) {
+            scope.launch {
+                showStatus(if (accounts.setAvatarFromUri(pid, uri)) I18n.s("头像已更新", "Avatar updated")
+                else I18n.s("头像设置失败", "Failed to set avatar"))
+            }
+        }
+    }
     var showClearDialog by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var importing by remember { mutableStateOf(false) }
@@ -113,27 +140,53 @@ fun SettingsScreen(repository: DepositRepository) {
                         "json" -> {
                             val backup = BackupCodec.decodeBackup(text.toString(Charsets.UTF_8))
                                 ?: return@withContext null
-                            val deposits = backup.deposits.map { dto ->
-                                Deposit(
-                                    accountName = dto.accountName,
-                                    owner = dto.owner,
-                                    productName = dto.productName,
-                                    principal = dto.principal,
-                                    annualRate = dto.annualRate,
-                                    startDate = dto.startDate,
-                                    endDate = dto.endDate,
-                                    termDays = dto.termDays,
-                                    note = dto.note,
-                                    isActive = dto.isActive,
-                                    createdAt = dto.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
-                                    updatedAt = System.currentTimeMillis(),
-                                )
+                            fun toDeposit(dto: DepositDto, profileId: Long) = Deposit(
+                                profileId = profileId,
+                                accountName = dto.accountName,
+                                owner = dto.owner,
+                                productName = dto.productName,
+                                principal = dto.principal,
+                                annualRate = dto.annualRate,
+                                startDate = dto.startDate,
+                                endDate = dto.endDate,
+                                termDays = dto.termDays,
+                                note = dto.note,
+                                isActive = dto.isActive,
+                                createdAt = dto.createdAt.takeIf { it > 0 } ?: System.currentTimeMillis(),
+                                updatedAt = System.currentTimeMillis(),
+                            )
+                            val deposits = if (backup.accounts.isNotEmpty()) {
+                                // v2 多账户备份：按账户名建立映射，逐账户导入
+                                backup.accounts.flatMap { acc ->
+                                    val pid = repository.accounts.ensureProfile(acc.name.ifBlank {
+                                        I18n.s("导入账户", "Imported account")
+                                    }, acc.sortOrder)
+                                    acc.deposits.map { toDeposit(it, pid) }
+                                }
+                            } else {
+                                // v1 / 旧数组：全部导入当前账户
+                                backup.deposits.map { toDeposit(it, repository.accounts.currentId.value) }
                             }
                             ImportBundle(deposits, 0, "JSON")
                         }
                         else -> {
-                            val r = XlsxImporter.parse(text)
-                            ImportBundle(r.deposits, r.skippedRows, "Excel")
+                            val all = XlsxImporter.parseAll(text)
+                            if (all.isEmpty()) ImportBundle(emptyList(), 0, "Excel")
+                            else {
+                                val existing = repository.accounts.profiles.value.map { it.name }.toSet()
+                                val bySheet = all.size > 1 && all.any { it.sheetName in existing }
+                                val deposits = if (bySheet) {
+                                    // 每个 sheet 一个账户（sheet 名 = 账户昵称）
+                                    all.flatMap { r ->
+                                        val pid = repository.accounts.ensureProfile(r.sheetName)
+                                        r.deposits.map { it.copy(profileId = pid) }
+                                    }
+                                } else {
+                                    // 单 sheet 或不认识的 sheet 名：全部导入当前账户
+                                    all.flatMap { r -> r.deposits.map { it.copy(profileId = repository.accounts.currentId.value) } }
+                                }
+                                ImportBundle(deposits, all.sumOf { it.skippedRows }, "Excel")
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -204,11 +257,80 @@ fun SettingsScreen(repository: DepositRepository) {
             }
         }
 
+        SettingsGroup(I18n.s("账户", "Accounts")) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                // 当前账户（点头像可换头像）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ProfileAvatar(
+                        profile = profiles.firstOrNull { it.id == currentProfileId },
+                        accounts = accounts,
+                        size = 40.dp,
+                        modifier = androidx.compose.ui.Modifier.clickable {
+                            pendingAvatarProfileId = currentProfileId
+                            LockManager.suspend()
+                            avatarPicker.launch("image/*")
+                        },
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            profiles.firstOrNull { it.id == currentProfileId }?.name ?: "",
+                            fontWeight = FontWeight.Medium,
+                        )
+                        Text(
+                            I18n.s("点击头像可更换自定义头像", "Tap the avatar to set a custom photo"),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+
+                // 全部账户列表：重命名 / 删除
+                profiles.forEach { p ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            (if (p.id == currentProfileId) "● " else "○ ") + p.name,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { accounts.switchTo(p.id) }) {
+                            Text(if (p.id == currentProfileId) I18n.s("当前", "Current") else I18n.s("切换", "Switch"))
+                        }
+                        IconButton(onClick = { editingProfile = p }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Outlined.Edit, I18n.s("重命名", "Rename"), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        IconButton(onClick = { deletingProfile = p }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Outlined.Delete, I18n.s("删除账户", "Delete account"), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+
+                // 新建账户
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        I18n.s("不同账户的存款各自独立记录", "Each account keeps its own deposits"),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = { newAccountDialog = true }) {
+                        Icon(Icons.Outlined.Add, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(I18n.s("新建账户", "New account"))
+                    }
+                }
+            }
+        }
+
         SettingsGroup(I18n.s("导入", "Import")) {
             SettingsItem(
                 icon = { Icon(Icons.Outlined.UploadFile, null) },
                 title = I18n.s("从 Excel 导入", "Import from Excel"),
-                subtitle = I18n.s("选择账本 .xlsx，读取「总账」sheet", "Pick a .xlsx and read the “General Ledger” sheet"),
+                subtitle = I18n.s("选择账本 .xlsx，多账户时每个账户 sheet 自动导入", "Pick a .xlsx; with multiple accounts each sheet is imported per account"),
                 onClick = {
                     LockManager.suspend()
                     xlsxPicker.launch(
@@ -488,6 +610,53 @@ fun SettingsScreen(repository: DepositRepository) {
             },
         )
     }
+
+    // 新建账户弹窗
+    if (newAccountDialog) {
+        AccountNameDialog(
+            title = I18n.s("新建账户", "New account"),
+            onConfirm = { name ->
+                newAccountDialog = false
+                scope.launch {
+                    accounts.add(name)
+                    showStatus(I18n.s("已创建账户「$name」并切换", "Created and switched to \"$name\""))
+                }
+            },
+            onDismiss = { newAccountDialog = false },
+        )
+    }
+
+    // 重命名账户弹窗
+    editingProfile?.let { p ->
+        AccountNameDialog(
+            title = I18n.s("重命名账户", "Rename account"),
+            initial = p.name,
+            onConfirm = { name ->
+                editingProfile = null
+                scope.launch { accounts.rename(p.id, name) }
+            },
+            onDismiss = { editingProfile = null },
+        )
+    }
+
+    // 删除账户确认弹窗
+    deletingProfile?.let { p ->
+        AccountDeleteDialog(
+            name = p.name,
+            onConfirm = {
+                deletingProfile = null
+                if (profiles.size <= 1) {
+                    showStatus(I18n.s("至少需要保留一个账户", "At least one account is required"))
+                } else {
+                    scope.launch {
+                        accounts.deleteProfile(p.id)
+                        showStatus(I18n.s("已删除账户「${p.name}」", "Deleted account \"${p.name}\""))
+                    }
+                }
+            },
+            onDismiss = { deletingProfile = null },
+        )
+    }
 }
 
 @Composable
@@ -569,25 +738,33 @@ private fun saveToDownloads(
 private suspend fun exportJson(context: Context, repository: DepositRepository): String? =
     withContext(Dispatchers.IO) {
         try {
-            val deposits = repository.getAllOnce()
+            // v2 多账户备份：accounts[] 每账户一包存款；顶层 deposits 镜像全部数据（旧版 App 仍可读）
+            val allDeposits = repository.getAllDepositsAllAccounts()
+            val profiles = repository.accounts.profiles.value
+            fun toDto(d: Deposit) = DepositDto(
+                accountName = d.accountName,
+                owner = d.owner,
+                productName = d.productName,
+                principal = d.principal,
+                annualRate = d.annualRate,
+                startDate = d.startDate,
+                endDate = d.endDate,
+                termDays = d.termDays,
+                note = d.note,
+                isActive = d.isActive,
+                createdAt = d.createdAt,
+                updatedAt = d.updatedAt,
+            )
             val backup = BackupFile(
                 appVersion = BuildConfig.VERSION_NAME,
-                deposits = deposits.map { d ->
-                    DepositDto(
-                        accountName = d.accountName,
-                        owner = d.owner,
-                        productName = d.productName,
-                        principal = d.principal,
-                        annualRate = d.annualRate,
-                        startDate = d.startDate,
-                        endDate = d.endDate,
-                        termDays = d.termDays,
-                        note = d.note,
-                        isActive = d.isActive,
-                        createdAt = d.createdAt,
-                        updatedAt = d.updatedAt,
+                accounts = profiles.map { p ->
+                    AccountDto(
+                        name = p.name,
+                        sortOrder = p.sortOrder,
+                        deposits = allDeposits.filter { it.profileId == p.id }.map { toDto(it) },
                     )
                 },
+                deposits = allDeposits.map { toDto(it) },
             )
             saveToDownloads(
                 context,
@@ -603,8 +780,11 @@ private suspend fun exportJson(context: Context, repository: DepositRepository):
 private suspend fun exportXlsx(context: Context, repository: DepositRepository): String? =
     withContext(Dispatchers.IO) {
         try {
-            val deposits = repository.getAllOnce()
-            val bytes = XlsxExporter.export(deposits)
+            // 每个账户一个 sheet（sheet 名 = 账户昵称）
+            val profiles = repository.accounts.profiles.value
+            val all = repository.getAllDepositsAllAccounts()
+            val sheets = profiles.map { p -> p.name to all.filter { it.profileId == p.id } }
+            val bytes = XlsxExporter.exportSheets(sheets)
             saveToDownloads(
                 context,
                 timestampName("xlsx"),
@@ -940,13 +1120,38 @@ private suspend fun shareFile(context: Context, repository: DepositRepository, t
         val name = timestampName(if (type == "xlsx") "xlsx" else "json")
         val file = File(dir, name)
         if (type == "xlsx") {
-            val deposits = repository.getAllOnce()
-            file.writeBytes(XlsxExporter.export(deposits))
+            // 每个账户一个 sheet
+            val profiles = repository.accounts.profiles.value
+            val all = repository.getAllDepositsAllAccounts()
+            file.writeBytes(XlsxExporter.exportSheets(profiles.map { p -> p.name to all.filter { it.profileId == p.id } }))
         } else {
-            val deposits = repository.getAllOnce()
+            // v2 多账户备份
+            val all = repository.getAllDepositsAllAccounts()
             val backup = BackupFile(
-                appVersion = "1.0",
-                deposits = deposits.map { d ->
+                appVersion = BuildConfig.VERSION_NAME,
+                accounts = repository.accounts.profiles.value.map { p ->
+                    AccountDto(
+                        name = p.name,
+                        sortOrder = p.sortOrder,
+                        deposits = all.filter { it.profileId == p.id }.map { d ->
+                            DepositDto(
+                                accountName = d.accountName,
+                                owner = d.owner,
+                                productName = d.productName,
+                                principal = d.principal,
+                                annualRate = d.annualRate,
+                                startDate = d.startDate,
+                                endDate = d.endDate,
+                                termDays = d.termDays,
+                                note = d.note,
+                                isActive = d.isActive,
+                                createdAt = d.createdAt,
+                                updatedAt = d.updatedAt,
+                            )
+                        },
+                    )
+                },
+                deposits = all.map { d ->
                     DepositDto(
                         accountName = d.accountName,
                         owner = d.owner,

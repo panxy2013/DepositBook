@@ -35,6 +35,9 @@ interface DepositDao {
     @Query("SELECT * FROM deposit")
     suspend fun getAllOnce(): List<Deposit>
 
-    @Query("UPDATE deposit SET accountName = :newName, updatedAt = :now WHERE accountName = :oldName")
-    suspend fun renameAccount(oldName: String, newName: String, now: Long): Int
+    @Query("UPDATE deposit SET accountName = :newName, updatedAt = :now WHERE accountName = :oldName AND profileId = :profileId")
+    suspend fun renameAccount(oldName: String, newName: String, now: Long, profileId: Long): Int
+
+    @Query("DELETE FROM deposit WHERE profileId = :profileId")
+    suspend fun deleteByProfile(profileId: Long)
 }

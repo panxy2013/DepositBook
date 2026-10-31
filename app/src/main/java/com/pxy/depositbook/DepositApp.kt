@@ -4,6 +4,7 @@ import android.app.Application
 import com.pxy.depositbook.data.db.AppDatabase
 import com.pxy.depositbook.data.prefs.OptionsStore
 import com.pxy.depositbook.data.prefs.SecurityStore
+import com.pxy.depositbook.data.repo.AccountStore
 import com.pxy.depositbook.data.repo.DepositRepository
 import com.pxy.depositbook.util.I18n
 import com.pxy.depositbook.worker.ReminderScheduler
@@ -11,8 +12,14 @@ import com.pxy.depositbook.worker.ReminderScheduler
 class DepositApp : Application() {
 
     val database: AppDatabase by lazy { AppDatabase.get(this) }
+    val accountStore: AccountStore by lazy { AccountStore(this, database, options) }
     val repository: DepositRepository by lazy {
-        DepositRepository(database.depositDao(), database.operationLogDao(), database.assetSnapshotDao())
+        DepositRepository(
+            database.depositDao(),
+            database.operationLogDao(),
+            database.assetSnapshotDao(),
+            accountStore,
+        )
     }
     val options: OptionsStore by lazy { OptionsStore(this) }
     val security: SecurityStore by lazy { SecurityStore(this) }
