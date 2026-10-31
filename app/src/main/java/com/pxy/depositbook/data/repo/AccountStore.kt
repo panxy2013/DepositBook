@@ -108,13 +108,23 @@ class AccountStore(
     suspend fun setAvatarFromUri(id: Long, uri: android.net.Uri): Boolean {
         val p = db.profileDao().findById(id) ?: return false
         return try {
+            // 第一步：只读尺寸。注意 inJustDecodeBounds=true 时 decodeStream 恒返回 null，
+            // 只看 bounds.outWidth/outHeight 是否被填上，不能对返回值做判空。
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                ?: return false
+            context.contentResolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, bounds)
+            }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                android.util.Log.w("AccountStore", "avatar decode bounds failed w=${bounds.outWidth} h=${bounds.outHeight} uri=$uri")
+                return false
+            }
             val sample = maxOf(1, maxOf(bounds.outWidth, bounds.outHeight) / 512)
             val opts = BitmapFactory.Options().apply { inSampleSize = sample }
             val bmp = context.contentResolver.openInputStream(uri)?.use {
                 BitmapFactory.decodeStream(it, null, opts)
+            } ?: context.contentResolver.openInputStream(uri)?.use {
+                // 兜底：缩放解码失败就用 1/2 再试一次
+                BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = 2 })
             } ?: return false
             val name = "a${id}_${System.currentTimeMillis()}.jpg"
             avatarDir.mkdirs()
@@ -127,6 +137,7 @@ class AccountStore(
             refresh()
             true
         } catch (e: Exception) {
+            android.util.Log.w("AccountStore", "setAvatar failed: ${e.message}")
             false
         }
     }

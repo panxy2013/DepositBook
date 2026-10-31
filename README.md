@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.13 | [deposit-book-v1.0.13.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.13/deposit-book-v1.0.13.apk) |
 | v1.0.12 | [deposit-book-v1.0.12.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.12/deposit-book-v1.0.12.apk) |
 | v1.0.11 | [deposit-book-v1.0.11.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.11/deposit-book-v1.0.11.apk) |
 | v1.0.10 | [deposit-book-v1.0.10.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.10/deposit-book-v1.0.10.apk) |
@@ -58,6 +59,9 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.13（2026-11-01）
+- **修复：设置头像总是提示「头像设置失败」**——图片尺寸预读的返回值被误判为失败，导致任何照片都无法设置头像；现已修复并增加缩放解码兜底
 
 ### v1.0.12（2026-11-01）
 - **新增「多账户」功能**：可以创建多个账户（如「我的存款」「家人的存款」），分别记账
