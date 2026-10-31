@@ -49,9 +49,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -96,6 +99,7 @@ fun DepositEditScreen(
     // 选完银行 → 焦点自动到产品；选完产品 → 焦点自动到本金
     val productFocus = remember { FocusRequester() }
     val principalFocus = remember { FocusRequester() }
+    val rateFocus = remember { FocusRequester() }
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
     // origin 将在下面赋值
@@ -166,6 +170,10 @@ fun DepositEditScreen(
     var startDate by remember(origin) {
         mutableStateOf(origin?.startDate?.let { DateUtils.toDate(it) } ?: LocalDate.now())
     }
+    // 存入日期第 5 步：默认今天（系统自动填），用户改过才算确认；编辑旧存款视为已确认
+    var dateModified by remember(origin) { mutableStateOf(origin != null) }
+    // 存期第 6 步：仅在选择了可修改存期的产品后显示；默认 1 年，用户改过才算确认
+    var termModified by remember(origin) { mutableStateOf(origin != null) }
 
     // 存期单位内部用固定代码（Y/M/D），显示时按当前语言翻译
     val termUnits = listOf(
@@ -225,14 +233,21 @@ fun DepositEditScreen(
     val days = if (daysLong <= 0) 1L else daysLong
     val daily = InterestCalculator.dailyInterest(principalVal, rateVal)
 
-    // 保存三步：1 银行名称 2 产品名称 3 本金；对应栏位左侧显示圆圈序号
+    // 保存步骤：1 银行名称 2 产品名称 3 本金 4 年化利率；第 5 步为存入日期（默认今天，非必填）
+    val rateInputVal = parseRateInput(rate)
+    val rateValid = rateInputVal != null && rateInputVal >= 0.0
     val saveSteps = listOf(
         Triple(1, accountName.trim().isNotBlank(), I18n.s("银行名称", "Bank")),
-        Triple(2, productName.isNotBlank(), I18n.s("产品名称", "Product")),
+        Triple(2, productName.isNotBlank(), I18n.s("存款期限", "Deposit term")),
         Triple(3, principalVal > 0.0, I18n.s("本金（元）", "Principal")),
+        Triple(4, rateValid, I18n.s("年化利率", "Annual rate")),
     )
     val pendingSteps = saveSteps.filter { !it.second }
     val nextStepNum = pendingSteps.firstOrNull()?.first
+    // 软步骤链：①-④ 硬步骤 → ⑤ 存入日期（默认今天可跳过）→ ⑥ 存期（默认 1 年可跳过）
+    val dateIsCurrent = nextStepNum == null && !dateModified
+    val termIsCurrent = nextStepNum == null && dateModified && !termModified &&
+            productName.isNotBlank() && !termLocked
 
     val doSave: () -> Unit = {
         val errors = mutableListOf<String>()
@@ -284,7 +299,7 @@ fun DepositEditScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (origin == null) I18n.s("新增存款", "Add Deposit") else I18n.s("编辑存款", "Edit Deposit")) },
+                title = { Text(if (origin == null) I18n.s("新增存款", "Add Deposit") else I18n.s("编辑存款", "Edit Deposit"), style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, I18n.s("返回", "Back"))
@@ -310,7 +325,25 @@ fun DepositEditScreen(
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 I18n.s("下一步 %d %s", "Next %d %s").format(nextStepNum, label),
-                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                maxLines = 1,
+                            )
+                        } else if (!dateModified) {
+                            // 前四步完成且存入日期仍是默认今天 → 第 5 步：确认日期（默认今天，可跳过，不阻碍保存）
+                            StepBadge(num = 5, done = false, highlight = true)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                I18n.s("下一步 5 存入日期·默认今天可跳过", "Next 5 Deposit date (today by default)"),
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                                maxLines = 1,
+                            )
+                        } else if (termIsCurrent) {
+                            // 存期显示且可修改但未确认 → 第 6 步：默认 1 年，可跳过，不阻碍保存
+                            StepBadge(num = 6, done = false, highlight = true)
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                I18n.s("下一步 6 存期·默认1年可跳过", "Next 6 Term (1 year by default)"),
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                                 maxLines = 1,
                             )
                         } else {
@@ -318,7 +351,7 @@ fun DepositEditScreen(
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 I18n.s("可以保存", "Ready to save"),
-                                fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
@@ -374,6 +407,7 @@ fun DepositEditScreen(
                         },
                         placeholder = I18n.s("选择存款银行", "Select bank"),
                         customAdd = { name -> I18n.s("添加自定义银行「${name}」", "Add custom bank \"$name\"") },
+                        onClear = { accountName = "" },
                         onSelect = { sel ->
                             accountName = sel
                             // 非内置银行 → 记入用户自定义银行清单
@@ -394,10 +428,11 @@ fun DepositEditScreen(
                 Spacer(Modifier.width(8.dp))
                 WithChineseImeHint(modifier = Modifier.weight(1f)) {
                     SearchableDropdownField(
-                        label = I18n.s("产品名称", "Product"),
+                        label = I18n.s("存款期限", "Deposit term"),
                         value = productName,
                         options = productItems.map { DropdownItem(it.name) },
-                        placeholder = I18n.s("输入关键字筛选", "Type to filter"),
+                        placeholder = I18n.s("选择存款期限", "Select deposit term"),
+                        onClear = { productName = "" },
                         onFocusRequester = productFocus,
                         onSelect = { sel ->
                             productName = sel
@@ -432,7 +467,7 @@ fun DepositEditScreen(
                 }
             }
 
-            // ③ 本金（元）：数字键盘，按「完成」收起键盘
+            // ③ 本金（元）：数字键盘，按「完成」跳到年化利率
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 StepBadge(num = 3, done = principalVal > 0.0, highlight = nextStepNum == 3)
                 Spacer(Modifier.width(8.dp))
@@ -440,6 +475,28 @@ fun DepositEditScreen(
                     value = principal,
                     onValueChange = { principal = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text(I18n.s("本金（元）", "Principal (CNY)")) },
+                    placeholder = { Text(I18n.s("输入本金", "Enter principal")) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { rateFocus.requestFocus() }),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(principalFocus),
+                )
+            }
+
+            // ④ 年化利率（%）：数字键盘，「完成」收起键盘
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                StepBadge(num = 4, done = rateValid, highlight = nextStepNum == 4)
+                Spacer(Modifier.width(8.dp))
+                OutlinedTextField(
+                    value = rate,
+                    onValueChange = { rate = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text(I18n.s("年化利率（%）", "Annual rate (%)")) },
+                    placeholder = { Text(I18n.s("如：4 表示 4%", "e.g. 4 means 4%")) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal,
@@ -448,85 +505,73 @@ fun DepositEditScreen(
                     keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
                     modifier = Modifier
                         .weight(1f)
-                        .focusRequester(principalFocus),
+                        .focusRequester(rateFocus),
                 )
             }
 
-            OutlinedTextField(
-                value = rate,
-                onValueChange = { rate = it.filter { c -> c.isDigit() || c == '.' } },
-                label = { Text(I18n.s("年化利率（%）", "Annual rate (%)")) },
-                placeholder = { Text(I18n.s("如：4 表示 4%", "e.g. 4 means 4%")) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            DateField(I18n.s("存入日期", "Deposit date"), startDate, Modifier.fillMaxWidth()) { showStartPicker = true }
-
-            if (termLocked) {
-                // 存期锁定：只读展示
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            I18n.s("存期（按产品固定，不可修改）", "Term (fixed by product, not editable)"),
-                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        val u = termUnits.first { it.code == termUnit }
-                        Text(
-                            I18n.s("%s %s（%d 天）", "%s %s (%d days)").format(termCountInput, u.display(), days),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    DropdownField(
-                        label = I18n.s("存期单位", "Term unit"),
-                        value = termUnits.first { it.code == termUnit }.display(),
-                        options = termUnits.map { it.display() },
-                        placeholder = I18n.s("请选择", "Select"),
-                        onSelect = { sel ->
-                            termUnit = termUnits.first { it.display() == sel }.code
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedTextField(
-                        value = termCountInput,
-                        onValueChange = { termCountInput = it.filter { c -> c.isDigit() } },
-                        label = { Text(I18n.s("存期数值", "Term length")) },
-                        placeholder = { Text(I18n.s("如：12", "e.g. 12")) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
+            // ⑤ 存入日期：默认今天（虚线圆圈=待确认），改过日期后变对勾；到期日期并入同行纯文本显示
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                StepBadge(
+                    num = 5,
+                    done = dateModified,
+                    highlight = !dateModified && nextStepNum == null,
+                    dashed = !dateModified && nextStepNum != null,
+                )
+                Spacer(Modifier.width(8.dp))
+                DateField(I18n.s("存入日期", "Deposit date"), startDate, Modifier.weight(1f)) { showStartPicker = true }
+                Spacer(Modifier.width(10.dp))
+                Column {
                     Text(
-                        I18n.s("到期日期（自动计算，不可手动修改）", "Maturity date (auto-calculated, not editable)"),
-                        fontSize = MaterialTheme.typography.labelMedium.fontSize,
+                        I18n.s("到期日期", "Maturity"),
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(4.dp))
                     Text(FormatUtils.date(endDate), style = MaterialTheme.typography.titleMedium)
                 }
             }
 
-            Text(
-                I18n.s("期限 ${days} 天 · 日利息约 ${FormatUtils.moneyPlain(daily)} 元", "${days} days · est. daily interest ${FormatUtils.moneyPlain(daily)} CNY"),
-                fontSize = MaterialTheme.typography.labelMedium.fontSize,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            OutlinedTextField(
+            // ⑥ 存期：未选产品或产品固定存期时不显示任何栏位；可修改存期的产品显示（默认1年，可跳过）
+            if (productName.isNotBlank() && !termLocked) {
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        StepBadge(
+                            num = 6,
+                            done = termModified,
+                            highlight = termIsCurrent,
+                            dashed = !termModified && !termIsCurrent,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            DropdownField(
+                                label = I18n.s("存期单位", "Term unit"),
+                                value = termUnits.first { it.code == termUnit }.display(),
+                                options = termUnits.map { it.display() },
+                                placeholder = I18n.s("请选择", "Select"),
+                                onSelect = { sel ->
+                                    termUnit = termUnits.first { it.display() == sel }.code
+                                    termModified = true
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = termCountInput,
+                                onValueChange = {
+                                    termCountInput = it.filter { c -> c.isDigit() }
+                                    termModified = true
+                                },
+                                label = { Text(I18n.s("存期数值", "Term length")) },
+                                placeholder = { Text(I18n.s("如：12", "e.g. 12")) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.weight(1f),
+                            )
+                         }
+                     }
+                 }
+ 
+             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
                 label = { Text(I18n.s("备注（可选）", "Note (optional)")) },
@@ -544,6 +589,7 @@ fun DepositEditScreen(
             confirmButton = {
                 TextButton(onClick = {
                     state.selectedDateMillis?.let { startDate = DateUtils.toDate(it) }
+                    dateModified = true
                     showStartPicker = false
                 }) { Text(I18n.s("确定", "OK")) }
             },
@@ -577,7 +623,8 @@ private data class UnitOption(val code: String, val zh: String, val en: String) 
  * - 未完成：透明底 + 灰色描边数字
  */
 @Composable
-private fun StepBadge(num: Int, done: Boolean, highlight: Boolean) {
+private fun StepBadge(num: Int, done: Boolean, highlight: Boolean, dashed: Boolean = false) {
+    val outlineColor = MaterialTheme.colorScheme.outline
     val bg = when {
         done -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f)
         highlight -> MaterialTheme.colorScheme.primary
@@ -594,9 +641,22 @@ private fun StepBadge(num: Int, done: Boolean, highlight: Boolean) {
             .clip(CircleShape)
             .background(bg)
             .then(
-                if (!done && !highlight) {
-                    Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                } else Modifier
+                when {
+                    // 虚线描边：表示「系统已自动填默认值，待确认」（区别于实线=待填写）
+                    dashed -> Modifier.drawBehind {
+                        val w = 1.5.dp.toPx()
+                        drawCircle(
+                            color = outlineColor,
+                            radius = size.minDimension / 2f - w / 2f,
+                            style = Stroke(
+                                width = w,
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.5f.dp.toPx())),
+                            ),
+                        )
+                    }
+                    !done && !highlight -> Modifier.border(1.dp, outlineColor, CircleShape)
+                    else -> Modifier
+                }
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -623,7 +683,7 @@ private fun DateField(
 ) {
     OutlinedCard(onClick = onClick, modifier = modifier) {
         Column(Modifier.padding(16.dp)) {
-            Text(label, fontSize = MaterialTheme.typography.labelMedium.fontSize,
+            Text(label, fontSize = MaterialTheme.typography.bodyMedium.fontSize,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text(FormatUtils.date(date), style = MaterialTheme.typography.titleMedium)

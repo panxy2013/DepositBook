@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.11 | [deposit-book-v1.0.11.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.11/deposit-book-v1.0.11.apk) |
 | v1.0.10 | [deposit-book-v1.0.10.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.10/deposit-book-v1.0.10.apk) |
 | v1.0.9 | [deposit-book-v1.0.9.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.9/deposit-book-v1.0.9.apk) |
 | v1.0.8 | [deposit-book-v1.0.8.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.8/deposit-book-v1.0.8.apk) |
@@ -54,6 +55,16 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.11（2026-11-01）
+- **新增存款步骤链延伸到 6 步**：1 银行 → 2 存款期限 → 3 本金 → 4 年化利率 → 5 存入日期 → 6 存期
+  - 存入日期默认今天：虚线圆圈=待确认，改过日期变绿勾；可跳过
+  - 存期默认不显示，选择了「可修改存期」的产品后出现（默认 1 年，可跳过）；固定存期产品只读卡片自动打勾
+  - 删除/清空已填内容时，对应步骤自动恢复未完成状态，浮动按钮提示随之回跳
+  - 本金按「完成」自动跳到年化利率，利率按「完成」收起键盘
+- **文案与布局**：「产品名称」改为「存款期限」（背景提示「选择存款期限」）；本金背景提示「输入本金」；到期日期并入存入日期一行纯文本显示；移除「期限 N 天 · 日利息」提示行
+- **界面易读性**：固定存期产品不再显示只读存期栏位（期限名称已说明）；各类灰色提示文字统一放大到 14sp
+- **标题统一**：总览页标题间距与其它页对齐；新增/编辑存款、存款详情、日历、银行明细、下钻列表五个二级页顶栏标题字号统一为与主页一致
 
 ### v1.0.10（2026-10-31）
 - **新增存款全面改造**：

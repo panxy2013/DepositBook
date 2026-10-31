@@ -84,7 +84,7 @@ fun DepositDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(I18n.s("存款详情", "Deposit Details")) },
+                title = { Text(I18n.s("存款详情", "Deposit Details"), style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, I18n.s("返回", "Back"))

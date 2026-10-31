@@ -78,7 +78,7 @@ fun CalendarScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(I18n.s("存入/到期日历", "Starts & Maturities")) },
+                title = { Text(I18n.s("存入/到期日历", "Starts & Maturities"), style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = { Log.d("DepositBook", "CalendarScreen: onBack"); onBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = I18n.s("返回", "Back"))

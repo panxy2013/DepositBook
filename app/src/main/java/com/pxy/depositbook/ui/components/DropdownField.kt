@@ -113,6 +113,8 @@ fun SearchableDropdownField(
     onFocusRequester: FocusRequester? = null,
     /** 输入名称无精确匹配时，在下拉顶部提供「添加自定义项」入口；参数为当前输入文本，返回菜单显示文字 */
     customAdd: ((String) -> String)? = null,
+    /** 用户把输入文字删空时回调 → 取消已选项，前面步骤状态回退未完成 */
+    onClear: (() -> Unit)? = null,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -133,7 +135,11 @@ fun SearchableDropdownField(
     ) {
         OutlinedTextField(
             value = text,
-            onValueChange = { text = it; expanded = true },
+            onValueChange = {
+                text = it
+                expanded = true
+                if (it.isBlank()) onClear?.invoke()
+            },
             singleLine = true,
             label = { Text(label) },
             placeholder = { Text(placeholder) },

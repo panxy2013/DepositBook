@@ -90,20 +90,20 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 100.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Spacer(Modifier.height(8.dp))
                         Text(
                             I18n.s("存款总览", "Deposit Overview"),
                             style = MaterialTheme.typography.headlineSmall,
                         )
+                        Spacer(Modifier.height(4.dp))
                         Text(
                             today,
-                            fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize },
+                            fontSize = MaterialTheme.typography.labelMedium.fontSize,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

@@ -49,7 +49,7 @@ fun BankDepositListScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(bankName) },
+                title = { Text(bankName, style = MaterialTheme.typography.headlineSmall) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = I18n.s("返回", "Back"))
