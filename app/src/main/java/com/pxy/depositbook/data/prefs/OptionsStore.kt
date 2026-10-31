@@ -59,6 +59,19 @@ class OptionsStore(context: Context) {
             prefs.edit().remove(KEY_PRODUCTS).apply()
         }
 
+        if (from < 4) {
+            // 新增「活期」预置产品：默认 10 年（3650 天）、存期可修改；老用户已自定义则保留
+            val raw = prefs.getString(KEY_PRODUCT_DEFS, null)
+            if (raw != null) {
+                val defs = runCatching { gson.fromJson(raw, Array<ProductDef>::class.java).toList().toMutableList() }
+                    .getOrDefault(DEFAULT_PRODUCT_DEFS.toMutableList())
+                if (defs.none { it.name == "活期" }) {
+                    defs.add(ProductDef("活期", 3650L, true))
+                    prefs.edit().putString(KEY_PRODUCT_DEFS, gson.toJson(defs)).apply()
+                }
+            }
+        }
+
         prefs.edit().putInt(KEY_VERSION, CURRENT_VERSION).apply()
     }
 
@@ -81,8 +94,8 @@ class OptionsStore(context: Context) {
     }
 
     /** 银行名称列表（不含姓名） */
-    /** 隐私模式默认状态：总览页金额是否默认隐藏（默认开启） */
-    fun privacyDefault(): Boolean = prefs.getBoolean("privacy_default", true)
+    /** 隐私模式默认状态：总览页金额是否默认隐藏（默认关闭） */
+    fun privacyDefault(): Boolean = prefs.getBoolean("privacy_default", false)
 
     fun setPrivacyDefault(on: Boolean) {
         prefs.edit().putBoolean("privacy_default", on).apply()
@@ -184,7 +197,7 @@ class OptionsStore(context: Context) {
         private const val KEY_PRODUCT_DEFS = "product_defs"
 
         /** 默认值变更时递增，触发一次本地迁移 */
-        private const val CURRENT_VERSION = 3
+        private const val CURRENT_VERSION = 4
 
         private val gson = Gson()
 
@@ -192,14 +205,16 @@ class OptionsStore(context: Context) {
         val DEFAULT_BANKS = emptyList<String>()
 
         /**
-         * 系统预置存期产品：不允许选择后再更改存期。
-         * 1年期整存整取 365 天、2年期 730 天、3年期 1095 天、5年期 1825 天
+         * 系统预置存期产品：
+         * - 1/2/3/5 年期整存整取（365/730/1095/1825 天），选择后存期固定不可改
+         * - 活期：默认 10 年（3650 天），存期可修改
          */
         val DEFAULT_PRODUCT_DEFS = listOf(
             ProductDef("1年期整存整取", 365L, false),
             ProductDef("2年期整存整取", 365L * 2, false),
             ProductDef("3年期整存整取", 365L * 3, false),
             ProductDef("5年期整存整取", 365L * 5, false),
+            ProductDef("活期", 3650L, true),
         )
     }
 }

@@ -3,10 +3,8 @@ package com.pxy.depositbook.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -49,7 +47,7 @@ private val BANK_COLORS = listOf(
  * 用户自定义银行永远走文字圆标。
  */
 @Composable
-fun BankIcon(bankName: String, size: Dp = 22.dp, modifier: Modifier = Modifier) {
+fun BankIcon(bankName: String, size: Dp = 26.dp, modifier: Modifier = Modifier) {
     val logoFile = remember(bankName) { BankCatalog.logoFile(bankName) }
 
     if (logoFile != null) {
@@ -64,11 +62,11 @@ fun BankIcon(bankName: String, size: Dp = 22.dp, modifier: Modifier = Modifier) 
                 .data("file:///android_asset/bank_logos/$logoFile")
                 .build()
         }
+        // 纯标志图形为方形，用等边容器 + 1dp 内边距，去掉左右留白
         Box(
             modifier = modifier
-                .width(size * 2.4f)
-                .height(size)
-                .clip(RoundedCornerShape(4.dp))
+                .size(size)
+                .clip(RoundedCornerShape(6.dp))
                 .background(Color(0xFFF4F6F8)),
             contentAlignment = Alignment.Center,
         ) {
@@ -79,7 +77,7 @@ fun BankIcon(bankName: String, size: Dp = 22.dp, modifier: Modifier = Modifier) 
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(2.dp),
+                    .padding(1.dp),
             )
         }
         return

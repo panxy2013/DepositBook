@@ -8,11 +8,12 @@ import java.time.format.DateTimeFormatter
 
 object FormatUtils {
 
-    private val money = DecimalFormat("#,##0.00")
+    private val money = DecimalFormat("#,##0").apply { groupingSize = 4 }
     private val rate = DecimalFormat("0.00%")
     private val dateFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     private val dateTimeFmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
 
+    /** 金额显示：4 位分段（万进位习惯），只显示整数部分；小数只存储不显示 */
     fun money(v: Double): String = "¥" + money.format(v)
 
     fun moneyPlain(v: Double): String = money.format(v)

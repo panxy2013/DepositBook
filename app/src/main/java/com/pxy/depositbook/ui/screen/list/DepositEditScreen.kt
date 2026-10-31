@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -38,7 +39,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.pxy.depositbook.DepositApp
@@ -50,6 +54,7 @@ import com.pxy.depositbook.ui.components.BankIcon
 import com.pxy.depositbook.ui.components.DropdownField
 import com.pxy.depositbook.ui.components.DropdownItem
 import com.pxy.depositbook.ui.components.SearchableDropdownField
+import com.pxy.depositbook.ui.components.WithChineseImeHint
 import com.pxy.depositbook.util.DateUtils
 import com.pxy.depositbook.util.FormatUtils
 import com.pxy.depositbook.util.InterestCalculator
@@ -74,6 +79,11 @@ fun DepositEditScreen(
 
     // 存期锁定：产品不允许修改存期时，存期单位/数值不可编辑
     var termLocked by remember { mutableStateOf(false) }
+
+    // 选完银行 → 焦点自动到产品；选完产品 → 焦点自动到本金
+    val productFocus = remember { FocusRequester() }
+    val principalFocus = remember { FocusRequester() }
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
     // origin 将在下面赋值
     val editing = remember { mutableStateOf<Deposit?>(null) }
@@ -125,9 +135,15 @@ fun DepositEditScreen(
     }
 
     var accountName by remember(origin) { mutableStateOf(origin?.accountName ?: "") }
-    var productName by remember(origin) { mutableStateOf(origin?.productName ?: (if (productItems.isNotEmpty()) productItems.first().name else "")) }
+    // 新增时产品默认留空，由用户搜索选择；编辑时保留原产品
+    var productName by remember(origin) { mutableStateOf(origin?.productName ?: "") }
     var principal by remember(origin) {
-        mutableStateOf(origin?.principal?.takeIf { it > 0 }?.let { FormatUtils.moneyPlain(it) } ?: "")
+        // 编辑时预填完整金额（含小数），避免重存时丢失小数部分
+        mutableStateOf(
+            origin?.principal?.takeIf { it > 0 }?.let { v ->
+                if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
+            } ?: "",
+        )
     }
     var rate by remember(origin) {
         mutableStateOf(origin?.annualRate?.takeIf { it > 0 }?.let { (it * 100).toString().replace(".0", "") } ?: "")
@@ -218,29 +234,32 @@ fun DepositEditScreen(
         ) {
             // 银行选择：内置清单（带图标）+ 用户自定义银行，输入关键字筛选
             // 排序：有存单的银行在前（最近存入的最前），其余按原顺序
-            SearchableDropdownField(
-                label = I18n.s("银行名称", "Bank"),
-                value = accountName,
-                options = remember(userBanks, depositBankOrder) {
-                    (userBanks + BankCatalog.BANKS.filterNot { b -> userBanks.contains(b) })
-                        .sortedWith(compareBy { bank ->
-                            depositBankOrder.indexOf(bank).let { if (it == -1) Int.MAX_VALUE else it }
-                        })
-                        .map { b ->
-                            val icon: (@Composable () -> Unit)? = if (BankCatalog.isBuiltIn(b)) {
-                                { BankIcon(b) }
-                            } else null
-                            DropdownItem(
-                                b,
-                                icon = icon,
-                                aliases = BankCatalog.ALIASES.filterValues { it == b }.keys.toList(),
-                            )
-                        }
-                },
-                placeholder = I18n.s("输入关键字筛选，如「工行」「微众」", "Type to filter, e.g. ICBC"),
-                onSelect = { accountName = it },
-                modifier = Modifier.fillMaxWidth(),
-            )
+            WithChineseImeHint {
+                SearchableDropdownField(
+                    label = I18n.s("银行名称", "Bank"),
+                    value = accountName,
+                    options = remember(userBanks, depositBankOrder) {
+                        (userBanks + BankCatalog.BANKS.filterNot { b -> userBanks.contains(b) })
+                            .sortedWith(compareBy { bank ->
+                                depositBankOrder.indexOf(bank).let { if (it == -1) Int.MAX_VALUE else it }
+                            })
+                            .map { b ->
+                                val icon: (@Composable () -> Unit)? = if (BankCatalog.isBuiltIn(b)) {
+                                    { BankIcon(b) }
+                                } else null
+                                DropdownItem(
+                                    b,
+                                    icon = icon,
+                                    aliases = BankCatalog.ALIASES.filterValues { it == b }.keys.toList(),
+                                )
+                            }
+                    },
+                    placeholder = I18n.s("输入关键字筛选，如「工行」「微众」", "Type to filter, e.g. ICBC"),
+                    onFocusRequester = null,
+                    onSelect = { accountName = it; productFocus.requestFocus() },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
 
             // 手动添加自定义银行（不带图标）
             var showAddBank by remember { mutableStateOf(false) }
@@ -253,13 +272,15 @@ fun DepositEditScreen(
             if (showAddBank) {
                 var newBank by remember { mutableStateOf("") }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newBank,
-                        onValueChange = { newBank = it },
-                        placeholder = { Text(I18n.s("输入银行名称", "Bank name"), fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize }) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
+                    WithChineseImeHint(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = newBank,
+                            onValueChange = { newBank = it },
+                            placeholder = { Text(I18n.s("输入银行名称", "Bank name"), fontSize = 12.dp.let { MaterialTheme.typography.labelMedium.fontSize }) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     Spacer(Modifier.width(8.dp))
                     androidx.compose.material3.TextButton(
                         onClick = {
@@ -277,15 +298,22 @@ fun DepositEditScreen(
             }
 
             // 产品选择：选择后自动带出默认存期；预置整存整取不允许更改存期
-            SearchableDropdownField(
+            WithChineseImeHint {
+                SearchableDropdownField(
                 label = I18n.s("产品名称", "Product"),
                 value = productName,
                 options = productItems.map { DropdownItem(it.name) },
                 placeholder = I18n.s("输入关键字筛选", "Type to filter"),
+                onFocusRequester = productFocus,
                 onSelect = { sel ->
                     productName = sel
                     val def = productDefs.firstOrNull { it.name == sel }
-                    if (def?.termDays != null) {
+                    if (def != null && def.name.contains("活期") && def.termDays == null) {
+                        // 用户自建的「活期」没填默认存期 → 按活期惯例默认 10 年（可修改）
+                        termUnit = "Y"
+                        termCountInput = "10"
+                        termLocked = false
+                    } else if (def?.termDays != null) {
                         val days = def.termDays!!
                         when {
                             days > 0 && days % 365L == 0L -> {
@@ -303,17 +331,25 @@ fun DepositEditScreen(
                         }
                     }
                     termLocked = def?.let { it.termDays != null && !it.allowModify } ?: false
+                    principalFocus.requestFocus()
                 },
                 modifier = Modifier.fillMaxWidth(),
-            )
+                )
+            }
 
             OutlinedTextField(
                 value = principal,
                 onValueChange = { principal = it.filter { c -> c.isDigit() || c == '.' } },
                 label = { Text(I18n.s("本金（元）", "Principal (CNY)")) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(principalFocus),
             )
 
             OutlinedTextField(

@@ -2,7 +2,10 @@ package com.pxy.depositbook.ui.components
 
 import com.pxy.depositbook.util.I18n
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
@@ -20,8 +23,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.PlatformTextInputMethodRequest
+import androidx.compose.ui.platform.PlatformTextInputInterceptor
+import androidx.compose.ui.platform.PlatformTextInputSession
+import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import java.util.Locale
 
 /** 下拉选项：label 为显示/返回值；icon 可选（内置银行图标用）；aliases 为关键字匹配别名 */
 data class DropdownItem(val label: String, val icon: (@Composable () -> Unit)? = null, val aliases: List<String> = emptyList())
@@ -88,8 +101,7 @@ fun DropdownField(
 /**
  * 可搜索下拉选择框：输入关键字实时筛选选项（匹配显示名或别名）。
  * 用于内置银行清单一类的长列表。
- */
-@OptIn(ExperimentalMaterial3Api::class)
+ */@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchableDropdownField(
     label: String,
@@ -97,6 +109,7 @@ fun SearchableDropdownField(
     options: List<DropdownItem>,
     placeholder: String = I18n.s("输入关键字筛选", "Type to filter"),
     emptyHint: String = I18n.s("没有匹配项", "No matches"),
+    onFocusRequester: FocusRequester? = null,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -123,6 +136,7 @@ fun SearchableDropdownField(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
+                .then(if (onFocusRequester != null) Modifier.focusRequester(onFocusRequester) else Modifier)
                 .menuAnchor(MenuAnchorType.PrimaryEditable),
         )
         ExposedDropdownMenu(
@@ -149,4 +163,34 @@ fun SearchableDropdownField(
             }
         }
     }
+}
+
+/**
+ * 中文输入法提示：把 EditorInfo.imeHintLocales 设为 zh-CN（并保留 en 备选），
+ * 输入法支持该标记时会自动切到中文键盘。包住整个字段即只对该字段生效。
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun WithChineseImeHint(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val hintLocales = remember { android.os.LocaleList(Locale.CHINA, Locale.ENGLISH) }
+    val interceptor = remember {
+        PlatformTextInputInterceptor { request, nextHandler ->
+            val wrapped = PlatformTextInputMethodRequest { outAttrs ->
+                runCatching { outAttrs.hintLocales = hintLocales }
+                request.createInputConnection(outAttrs)
+            }
+            nextHandler.startInputMethod(wrapped)
+        }
+    }
+    InterceptPlatformTextInput(
+        interceptor = interceptor,
+        content = { Box(modifier) { content() } },
+    )
+}
+
+/** 通用键盘收起动作：Done 按下时关闭输入法 */
+@Composable
+fun rememberHideKeyboardAction(): KeyboardActions {
+    val controller = LocalSoftwareKeyboardController.current
+    return remember { KeyboardActions(onDone = { controller?.hide() }) }
 }

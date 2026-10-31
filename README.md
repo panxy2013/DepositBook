@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.9 | [deposit-book-v1.0.9.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.9/deposit-book-v1.0.9.apk) |
 | v1.0.8 | [deposit-book-v1.0.8.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.8/deposit-book-v1.0.8.apk) |
 | v1.0.7 | [deposit-book-v1.0.7.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.7/deposit-book-v1.0.7.apk) |
 
@@ -52,6 +53,17 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.9（2026-10-31）
+- **隐私与安全锁默认关闭**：新装用户进入总览直接显示金额（设置里仍可随时开启）
+- **金额显示改为 4 位分段、只显示整数**：如 12345678.50 显示 `¥1234,5678`；小数部分仅存储不显示（编辑存款时预填完整金额，不会丢失小数）
+- **银行图标加大并去留白**：82 家标志图形按实际墨迹范围重新裁切，等边大图标显示，不再左右留白
+- **新增存款体验优化**：
+  - 产品名称默认留空，输入关键字可筛选全部产品（不再预填导致只筛出一项）
+  - 选完银行自动切到产品、选完产品自动切到本金输入
+  - 银行/产品输入框自动提示中文输入法（EditorInfo.hintLocales，Android 13+ 生效）
+  - 本金弹出数字键盘，按「完成」自动收起键盘
+- **新增「活期」预置产品**：默认存期 10 年（3650 天）、存期可修改；老用户已自定义则保留原样（选项自动迁移）
 
 ### v1.0.8（2026-10-28）
 - 全部 82 家内置银行图标由「标志 + 文字」组合标更换为**纯标志图形**版本，界面更加干净统一
