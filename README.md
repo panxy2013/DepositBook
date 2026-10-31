@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
 | v1.0.13 | [deposit-book-v1.0.13.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.13/deposit-book-v1.0.13.apk) |
 | v1.0.12 | [deposit-book-v1.0.12.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.12/deposit-book-v1.0.12.apk) |
 | v1.0.11 | [deposit-book-v1.0.11.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.11/deposit-book-v1.0.11.apk) |
@@ -59,6 +60,13 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.14（2026-11-01）
+- **选项维护 → 从已有存款导入优化**：
+  - 与内置银行目录一致的名称不再导入，银行下拉不会重复出现同名项
+  - 用户主动删除过的银行会被记住：点击「恢复默认」后，再次「从已有存款导入」也不会重新出现
+  - 在选项维护里手动添加或重命名为该银行时，会自动解除上述排除，以你最新的操作为准
+- 导入提示会显示本次实际新增的银行数量
 
 ### v1.0.13（2026-11-01）
 - **修复：设置头像总是提示「头像设置失败」**——图片尺寸预读的返回值被误判为失败，导致任何照片都无法设置头像；现已修复并增加缩放解码兜底

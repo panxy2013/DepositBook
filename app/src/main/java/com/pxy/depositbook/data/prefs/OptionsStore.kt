@@ -120,11 +120,38 @@ class OptionsStore(context: Context) {
 
     fun banks(): List<String> = read(KEY_BANKS, DEFAULT_BANKS)
 
-    fun addBank(name: String) = add(KEY_BANKS, DEFAULT_BANKS, name)
+    fun addBank(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        // 用户手动重新添加 → 解除「已删除」排除
+        val removed = read(KEY_REMOVED_BANKS, emptyList()).filterNot { it.equals(trimmed, ignoreCase = true) }
+        prefs.edit().putString(KEY_REMOVED_BANKS, removed.joinToString("\n")).apply()
+        add(KEY_BANKS, DEFAULT_BANKS, name)
+    }
 
-    fun removeBank(name: String) = remove(KEY_BANKS, DEFAULT_BANKS, name)
+    fun removeBank(name: String) {
+        remove(KEY_BANKS, DEFAULT_BANKS, name)
+        // 记住用户主动删除的银行：恢复默认 / 从存款导入时不再出现
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val removed = read(KEY_REMOVED_BANKS, emptyList())
+        if (removed.none { it.equals(trimmed, ignoreCase = true) }) {
+            prefs.edit().putString(KEY_REMOVED_BANKS, (removed + trimmed).joinToString("\n")).apply()
+        }
+    }
 
-    fun renameBank(oldName: String, newName: String) = rename(KEY_BANKS, DEFAULT_BANKS, oldName, newName)
+    /** 用户主动删除过的银行（黑名单）：从已有存款导入时跳过 */
+    fun removedBanks(): List<String> = read(KEY_REMOVED_BANKS, emptyList())
+
+    fun renameBank(oldName: String, newName: String) {
+        rename(KEY_BANKS, DEFAULT_BANKS, oldName, newName)
+        // 若新名字是「已删除黑名单」里的名字，视为用户主动用回，解除排除
+        val trimmed = newName.trim()
+        if (trimmed.isNotEmpty()) {
+            val removed = read(KEY_REMOVED_BANKS, emptyList()).filterNot { it.equals(trimmed, ignoreCase = true) }
+            prefs.edit().putString(KEY_REMOVED_BANKS, removed.joinToString("\n")).apply()
+        }
+    }
 
     /** 产品定义（含默认存期与是否允许修改） */
     fun productDefs(): List<ProductDef> {
@@ -163,7 +190,7 @@ class OptionsStore(context: Context) {
         }
     }
 
-    /** 恢复成默认选项（银行清空，产品为四个整存整取预置） */
+    /** 恢复成默认选项（银行清空，产品为四个整存整取预置）；用户删除过的银行黑名单保留，之后导入仍跳过 */
     fun resetToDefaults() {
         prefs.edit().remove(KEY_BANKS).apply()
         setProductDefs(DEFAULT_PRODUCT_DEFS)
@@ -202,6 +229,7 @@ class OptionsStore(context: Context) {
 
     companion object {
         private const val KEY_BANKS = "banks"
+        private const val KEY_REMOVED_BANKS = "banks_removed"
         private const val KEY_PRODUCTS = "products"
         private const val KEY_VERSION = "options_version"
         private const val KEY_PRODUCT_DEFS = "product_defs"

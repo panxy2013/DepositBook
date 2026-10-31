@@ -70,6 +70,7 @@ import com.pxy.depositbook.data.entity.Deposit
 import com.pxy.depositbook.data.entity.Profile
 import com.pxy.depositbook.data.prefs.OptionsStore
 import com.pxy.depositbook.data.prefs.ProductDef
+import com.pxy.depositbook.data.model.BankCatalog
 import com.pxy.depositbook.data.repo.DepositRepository
 import com.pxy.depositbook.ui.components.AccountDeleteDialog
 import com.pxy.depositbook.ui.components.AccountNameDialog
@@ -418,10 +419,14 @@ fun SettingsScreen(repository: DepositRepository) {
                         onClick = {
                             scope.launch {
                                 val all = repository.getAllOnce()
+                                val removed = optionsStore.removedBanks().toSet()
                                 val bankSet = banks.toMutableSet()
                                 all.forEach { d ->
-                                    if (!d.accountName.isNullOrBlank()) bankSet.add(d.accountName)
+                                    val name = d.accountName
+                                    // 跳过：内置银行目录已有的名称 + 用户主动删除过的银行，避免重复/复活
+                                    if (!name.isNullOrBlank() && !BankCatalog.isBuiltIn(name) && name !in removed) bankSet.add(name)
                                 }
+                                val imported = bankSet.count { it !in banks }
                                 bankSet.forEach { if (it !in banks) optionsStore.addBank(it) }
                                 // 产品：按名称汇总；同名存款存期一致则带出默认存期，允许修改存期
                                 val existing = productDefs.associateBy { it.name }
@@ -438,7 +443,11 @@ fun SettingsScreen(repository: DepositRepository) {
                                         }
                                     }
                                 refresh()
-                                showStatus(I18n.s("已从已有存款导入选项", "Options imported from existing deposits"))
+                                if (imported > 0) {
+                                    showStatus(I18n.s("已从已有存款导入选项：新增 $imported 个银行", "Options imported: $imported new bank(s)"))
+                                } else {
+                                    showStatus(I18n.s("已从已有存款导入选项：没有新增（内置银行已跳过）", "Options imported: nothing new (built-in banks skipped)"))
+                                }
                             }
                         }
                     ) { Text(I18n.s("从已有存款导入", "Import from deposits")) }
