@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.19 | [deposit-book-v1.0.19.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.19/deposit-book-v1.0.19.apk) |
 | v1.0.18 | [deposit-book-v1.0.18.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.18/deposit-book-v1.0.18.apk) |
 | v1.0.17 | [deposit-book-v1.0.17.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.17/deposit-book-v1.0.17.apk) |
 | v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
@@ -64,6 +65,9 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.19（2026-11-02）
+- **关于页新增 GitHub 入口**：显示项目地址 `github.com/panxy2013/DepositBook`，点击可直接打开仓库；欢迎点个 Star ⭐ 支持
 
 ### v1.0.18（2026-11-02）
 - **彻底解决「有些手机演示没声音」**：演示语音改为 **App 内置的中英文配音音频**（共 86 段，约 4MB），不再依赖手机系统的 TTS 引擎和中文语音包。无论什么手机、有没有装语音引擎，都能正常播放

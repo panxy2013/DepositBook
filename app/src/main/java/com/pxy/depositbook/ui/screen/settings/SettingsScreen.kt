@@ -18,6 +18,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -627,6 +629,41 @@ fun SettingsScreen(repository: DepositRepository, onOpenHelp: () -> Unit = {}) {
                             showStatus(I18n.s("未找到邮件应用，邮箱：23831644@qq.com", "No email app found; contact 23831644@qq.com"))
                         }
                     },
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        try {
+                            mailContext.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://github.com/panxy2013/DepositBook"),
+                                )
+                            )
+                        } catch (e: Exception) {
+                            showStatus("github.com/panxy2013/DepositBook")
+                        }
+                    },
+                ) {
+                    Icon(
+                        Icons.Outlined.Star,
+                        null,
+                        tint = Color(0xFFF5A623),
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        I18n.s("GitHub：github.com/panxy2013/DepositBook", "GitHub: github.com/panxy2013/DepositBook"),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    I18n.s("觉得好用的话，欢迎在 GitHub 点个 Star ⭐ 支持一下", "If you find it useful, a GitHub Star means a lot ⭐"),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
