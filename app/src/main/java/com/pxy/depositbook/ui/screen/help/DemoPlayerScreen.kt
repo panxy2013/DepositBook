@@ -116,9 +116,45 @@ fun DemoPlayerScreen(
     }
 
     val currentStep = demo.steps[step]
-    // 每步：朗读 + 自动模式下延时切换
+
+    // 每步配音：优先播放 App 内置的中文配音音频（不依赖系统 TTS，任何手机都能出声）；
+    // 没有对应音频时（例如英文界面）再退回系统 TTS。
+    val mediaPlayer = remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+    var hasClip by remember(step) { mutableStateOf(false) }
+
+    // 检查并播放内置配音
+    LaunchedEffect(step, voiceOn) {
+        runCatching {
+            mediaPlayer.value?.release()
+        }
+        mediaPlayer.value = null
+        hasClip = false
+        if (!voiceOn) return@LaunchedEffect
+        // 命名规则：{demoKey}_{stepIndex}.mp3（中文） / {demoKey}_{stepIndex}_en.mp3（英文）
+        val clip = "help/demo/voice/${demoKey}_${step}${if (I18n.isZh) "" else "_en"}.mp3"
+        val exists = runCatching {
+            context.assets.open(clip).use { true }
+        }.getOrDefault(false)
+        if (!exists) return@LaunchedEffect
+        hasClip = true
+        runCatching {
+            val afd = context.assets.openFd(clip)
+            val mp = android.media.MediaPlayer()
+            mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+            afd.close()
+            mp.prepare()
+            mp.start()
+            mediaPlayer.value = mp
+        }.onFailure { hasClip = false }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { runCatching { mediaPlayer.value?.release() } }
+    }
+
+    // 每步：朗读（TTS 兜底）+ 自动模式下延时切换
     LaunchedEffect(step, auto, ttsReady, voiceOn) {
-        if (voiceOn && ttsReady) {
+        if (voiceOn && ttsReady && !hasClip) {
             runCatching {
                 tts.value?.stop()
                 tts.value?.language = if (I18n.isZh) Locale.SIMPLIFIED_CHINESE else Locale.US
@@ -132,8 +168,14 @@ fun DemoPlayerScreen(
         }
         if (auto) {
             val text = if (I18n.isZh) currentStep.zh else currentStep.en
-            // 只有真正能发声时才按朗读时长等待，否则用固定节奏
-            val dur = if (voiceUsable) (text.length * 220L + 1500L).coerceIn(3000L, 25000L) else 4500L
+            // 内置配音：按音频实际时长等待；否则按文字长度估算
+            val dur = when {
+                hasClip -> runCatching {
+                    (mediaPlayer.value?.duration?.toLong() ?: 0L) + 1200L
+                }.getOrDefault(4500L).coerceIn(2500L, 30000L)
+                voiceUsable -> (text.length * 220L + 1500L).coerceIn(3000L, 25000L)
+                else -> 4500L
+            }
             delay(dur)
             if (step < demo.steps.lastIndex) {
                 step += 1
@@ -238,7 +280,8 @@ fun DemoPlayerScreen(
                         if (!it) runCatching { tts.value?.stop() }
                     })
                 }
-                if (!voiceUsable) {
+                // 有内置配音时不会走到这里；只有缺配音且系统 TTS 不可用时才提示
+                if (!voiceUsable && !hasClip) {
                     Spacer(Modifier.height(4.dp))
                     Column {
                         Text(

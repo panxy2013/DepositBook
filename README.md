@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.18 | [deposit-book-v1.0.18.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.18/deposit-book-v1.0.18.apk) |
 | v1.0.17 | [deposit-book-v1.0.17.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.17/deposit-book-v1.0.17.apk) |
 | v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
 | v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
@@ -63,6 +64,12 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.18（2026-11-02）
+- **彻底解决「有些手机演示没声音」**：演示语音改为 **App 内置的中英文配音音频**（共 86 段，约 4MB），不再依赖手机系统的 TTS 引擎和中文语音包。无论什么手机、有没有装语音引擎，都能正常播放
+- **配音音色升级**：使用自然流畅的神经网络语音（中文晓晓 / 英文 Aria），比系统 TTS 更好听；讲解与画面按实际音频时长同步切换
+- 系统 TTS 仅作为缺音频时的兜底；界面仍可随时开关语音
+- 新增配音完整性校验脚本，防止后续打包漏配音
 
 ### v1.0.17（2026-11-02）
 - **修复部分手机演示无声**：以前只检测「有没有语音引擎」，不检测「有没有中文语音包」。很多手机自带引擎但没下载中文语音数据，导致静音且无提示。现在会真正校验中文语音是否可用
