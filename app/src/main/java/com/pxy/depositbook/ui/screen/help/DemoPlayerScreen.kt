@@ -7,6 +7,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.foundation.Canvas
 
 import com.pxy.depositbook.util.I18n
+import android.content.Intent
 
 import android.speech.tts.TextToSpeech
 import androidx.compose.foundation.background
@@ -80,6 +81,8 @@ fun DemoPlayerScreen(
     var step by remember { mutableIntStateOf(0) }
     var auto by remember { mutableStateOf(true) }
     var ttsReady by remember { mutableStateOf(false) }
+    // 语音是否真的能发声：引擎可用 + 当前语言有语音数据（很多手机缺中文语音包）
+    var voiceUsable by remember { mutableStateOf(false) }
     var voiceOn by remember { mutableStateOf(true) }
 
     // 语音引擎（TTS）：不可用时仅显示文字
@@ -87,12 +90,28 @@ fun DemoPlayerScreen(
     DisposableEffect(Unit) {
         var engine: TextToSpeech? = null
         runCatching {
-            engine = TextToSpeech(context) { status -> ttsReady = status == TextToSpeech.SUCCESS }
+            engine = TextToSpeech(context) { status ->
+                if (status != TextToSpeech.SUCCESS) {
+                    ttsReady = false
+                    voiceUsable = false
+                    return@TextToSpeech
+                }
+                ttsReady = true
+                // 关键：确认当前语言真的有语音数据，否则 speak() 会静默失败
+                runCatching {
+                    val lang = if (I18n.isZh) Locale.SIMPLIFIED_CHINESE else Locale.US
+                    val r = engine?.setLanguage(lang)
+                    voiceUsable = r != null &&
+                        r != TextToSpeech.LANG_MISSING_DATA &&
+                        r != TextToSpeech.LANG_NOT_SUPPORTED
+                }.onFailure { voiceUsable = false }
+            }
             tts.value = engine
         }
         onDispose {
             runCatching { engine?.stop(); engine?.shutdown() }
             ttsReady = false
+            voiceUsable = false
         }
     }
 
@@ -113,7 +132,8 @@ fun DemoPlayerScreen(
         }
         if (auto) {
             val text = if (I18n.isZh) currentStep.zh else currentStep.en
-            val dur = if (ttsReady) (text.length * 220L + 1500L).coerceIn(3000L, 25000L) else 3500L
+            // 只有真正能发声时才按朗读时长等待，否则用固定节奏
+            val dur = if (voiceUsable) (text.length * 220L + 1500L).coerceIn(3000L, 25000L) else 4500L
             delay(dur)
             if (step < demo.steps.lastIndex) {
                 step += 1
@@ -218,16 +238,37 @@ fun DemoPlayerScreen(
                         if (!it) runCatching { tts.value?.stop() }
                     })
                 }
-                if (!ttsReady) {
+                if (!voiceUsable) {
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        I18n.s(
-                            "提示：设备未内置中文语音引擎时将不发声（文字讲解不影响使用）",
-                            "Note: without a Chinese TTS engine, narration is text-only",
-                        ),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Column {
+                        Text(
+                            I18n.s(
+                                if (!ttsReady) "提示：此设备没有可用的语音引擎，演示将只显示文字（不影响使用）"
+                                else "提示：此设备缺少中文语音包，演示将只显示文字（不影响使用）",
+                                if (!ttsReady) "Note: no TTS engine found, the demo is text-only (still fully usable)"
+                                else "Note: the Chinese voice pack is missing, the demo is text-only (still fully usable)",
+                            ),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (ttsReady) {
+                            Text(
+                                I18n.s(
+                                    "想听语音？点这里去系统设置安装：设置 → 系统 → 语言和输入 → 文字转语音 → 安装语音数据 → 中文",
+                                    "To enable voice: Settings → System → Languages & input → Text-to-speech → Install voice data → Chinese",
+                                ),
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.clickable {
+                                    runCatching {
+                                        context.startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+                                    }.onFailure {
+                                        runCatching { context.startActivity(Intent("android.settings.SETTINGS")) }
+                                    }
+                                },
+                            )
+                        }
+                    }
                 }
             }
             Spacer(Modifier.height(8.dp))

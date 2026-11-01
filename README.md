@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.17 | [deposit-book-v1.0.17.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.17/deposit-book-v1.0.17.apk) |
 | v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
 | v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
 | v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
@@ -62,6 +63,11 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.17（2026-11-02）
+- **修复部分手机演示无声**：以前只检测「有没有语音引擎」，不检测「有没有中文语音包」。很多手机自带引擎但没下载中文语音数据，导致静音且无提示。现在会真正校验中文语音是否可用
+- **无声时给出明确原因和解决办法**：区分「没有语音引擎」和「缺少中文语音包」两种情况分别提示，并可直接点提示跳转到系统「文字转语音」设置去安装中文语音数据
+- **无声时讲解节奏更稳**：不能发声时按固定节奏 4.5 秒切换（此前按文字长度估算，等待时间偏长）
 
 ### v1.0.16（2026-11-01）
 - **使用教学全面升级**：教学页顶部可直接「创建演示账户 / 切换 / 切回日常账户 / 关闭演示账户」，一键插入示例数据，随便操作不碰真实数据
