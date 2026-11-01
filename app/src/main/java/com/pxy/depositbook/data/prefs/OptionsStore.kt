@@ -107,6 +107,16 @@ class OptionsStore(context: Context) {
         prefs.edit().putLong("current_profile_id", id).apply()
     }
 
+    /** 到期提醒提前天数（默认 30 天，可在设置里修改，1..365） */
+    fun reminderDays(): Int = prefs.getInt("reminder_days", 30).coerceIn(1, 365)
+
+    fun setReminderDays(days: Int) {
+        val v = days.coerceIn(1, 365)
+        prefs.edit().putInt("reminder_days", v).apply()
+        // 同步进程级配置，首页/卡片/明细立即按新天数生效
+        com.pxy.depositbook.util.RemindConfig.days = v
+    }
+
     fun setPrivacyDefault(on: Boolean) {
         prefs.edit().putBoolean("privacy_default", on).apply()
     }

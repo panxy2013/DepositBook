@@ -150,6 +150,7 @@ private fun LogItem(log: OperationLog, onDelete: () -> Unit) {
         "UPDATE" -> ChartColors[5] to I18n.s("修改", "Edit")
         "DELETE" -> Danger to I18n.s("删除", "Delete")
         "SETTLE" -> Warning to I18n.s("结清", "Settle")
+        "UNSETTLE" -> Accent to I18n.s("恢复计息", "Reactivate")
         "IMPORT" -> ChartColors[4] to I18n.s("导入", "Import")
         else -> MaterialTheme.colorScheme.onSurfaceVariant to log.action
     }

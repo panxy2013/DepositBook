@@ -208,6 +208,9 @@ fun StatsScreen(
                                 .padding(vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            // 银行图标（内置显示 logo，否则彩色首字圆标）+ 原配色小点
+                            com.pxy.depositbook.ui.components.BankIcon(g.name, size = 22.dp)
+                            Spacer(Modifier.width(8.dp))
                             Box(
                                 Modifier
                                     .size(8.dp)

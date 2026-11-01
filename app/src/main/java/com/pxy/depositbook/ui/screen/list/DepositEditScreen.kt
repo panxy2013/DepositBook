@@ -4,6 +4,7 @@ import com.pxy.depositbook.util.I18n
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -115,6 +116,9 @@ fun DepositEditScreen(
 
     if (!loaded.value) return
     val origin = editing.value
+
+    // 已结清的存款锁定编辑：整页遮罩；点「标记为未结清」恢复计息后自动解锁
+    val settledLock = origin != null && !origin.isActive
 
     // 读取所有存款，计算银行排序：最近存入的银行排最前
     LaunchedEffect(Unit) {
@@ -308,7 +312,9 @@ fun DepositEditScreen(
             )
         },
         floatingActionButton = {
+            // 已结清锁定时不显示保存按钮
             // 侧边浮动保存：不受键盘遮挡（imePadding 抬升）；旁边提示下一步序号
+            if (!settledLock)
             Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                 Surface(
                     shape = CircleShape,
@@ -371,6 +377,7 @@ fun DepositEditScreen(
             }
         },
     ) { padding ->
+        Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -577,6 +584,65 @@ fun DepositEditScreen(
                 label = { Text(I18n.s("备注（可选）", "Note (optional)")) },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+
+        // 已结清锁定：整页遮罩 + 「标记为未结清」解锁入口
+        if (settledLock) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color(0x66191F25))
+                    .clickable(enabled = true, onClick = {}), // 拦截触控
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.large)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(20.dp),
+                ) {
+                    Text(
+                        I18n.s("这笔存款已标记为结清", "This deposit is settled"),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        I18n.s(
+                            "已结清的存款锁定不可修改。点击「标记为未结清」恢复计息后即可继续编辑。",
+                            "Settled deposits are locked. Tap \"Mark as unsettled\" to resume interest and edit again.",
+                        ),
+                        fontSize = MaterialTheme.typography.bodyMedium.fontSize,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.clickable(enabled = true, onClickLabel = "un-settle") {
+                            val cur = origin
+                            if (cur != null) {
+                                scope.launch {
+                                    repository.unsettle(cur)
+                                    editing.value = depositId?.let { repository.get(it) }
+                                }
+                            }
+                        },
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Filled.Check, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(I18n.s("标记为未结清", "Mark as unsettled"))
+                        }
+                    }
+                }
+            }
+        }
         }
     }
 

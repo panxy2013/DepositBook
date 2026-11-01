@@ -47,7 +47,7 @@ data class DepositUi(
     val valueAtMaturity: Double,
     val progress: Float,
 ) {
-    val expiringSoon: Boolean get() = daysLeft in 0..30
+    val expiringSoon: Boolean get() = daysLeft in 0 until com.pxy.depositbook.util.RemindConfig.days
     val urgent: Boolean get() = daysLeft in 0..7
     val expired: Boolean get() = daysLeft < 0
 }
@@ -69,7 +69,7 @@ object StatsCalculator {
             valueNow += InterestCalculator.valueNow(d, today)
             valueAtMaturity += InterestCalculator.valueAtMaturity(d)
             val left = InterestCalculator.daysLeft(d, today)
-            if (left in 0..30) expiring++
+            if (left in 0 until com.pxy.depositbook.util.RemindConfig.days) expiring++
         }
         return SummaryStats(
             totalPrincipal = principal,

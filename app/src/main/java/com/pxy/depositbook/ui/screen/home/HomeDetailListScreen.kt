@@ -39,6 +39,7 @@ import com.pxy.depositbook.data.repo.DepositRepository
 import com.pxy.depositbook.ui.components.BankIcon
 import com.pxy.depositbook.util.FormatUtils
 import com.pxy.depositbook.util.InterestCalculator
+import com.pxy.depositbook.util.RemindConfig
 import java.time.LocalDate
 
 enum class HomeDetailType { TODAY_INTEREST, TOTAL_INTEREST, EXPIRING_SOON, MATURITY_TOTAL }
@@ -72,9 +73,15 @@ fun HomeDetailListScreen(
         HomeDetailType.EXPIRING_SOON -> {
             deposits.filter { it.isActive }.map { d ->
                 val left = ((d.endDate - nowMs) / dayMs).toLong()
-                Triple(d, left.toDouble(), I18n.s("剩余 $left 天 · 到期 ${FormatUtils.date(d.endDate)}", "$left days left · matures ${FormatUtils.date(d.endDate)}"))
-            }.filter { it.second >= 0 && it.second <= 30 }
-                .sortedBy { it.second } // 30天内到期，以最近到期排序
+                val sub = if (left >= 0)
+                    I18n.s("剩余 $left 天 · 到期 ${FormatUtils.date(d.endDate)}", "$left days left · matures ${FormatUtils.date(d.endDate)}")
+                else
+                    I18n.s("已到期 ${-left} 天 · 到期日期 ${FormatUtils.date(d.endDate)}", "Matured $left days ago · ${FormatUtils.date(d.endDate)}")
+                Triple(d, left.toDouble(), sub)
+            }
+                // 快到期 + 已到期都列出，按到期日期先后排序
+                .filter { it.second < RemindConfig.days }
+                .sortedBy { it.first.endDate }
         }
         HomeDetailType.MATURITY_TOTAL -> {
             deposits.filter { it.isActive }.map { d ->
@@ -87,7 +94,7 @@ fun HomeDetailListScreen(
     val title = when (type) {
         HomeDetailType.TODAY_INTEREST -> I18n.s("今日新增利息明细", "Interest Earned Today")
         HomeDetailType.TOTAL_INTEREST -> I18n.s("累计已获利息明细", "Total Interest Earned")
-        HomeDetailType.EXPIRING_SOON -> I18n.s("30天内到期明细", "Due in 30 Days")
+        HomeDetailType.EXPIRING_SOON -> I18n.s("${RemindConfig.days}天内到期明细", "Due within ${RemindConfig.days} Days")
         HomeDetailType.MATURITY_TOTAL -> I18n.s("到期预估总额明细", "Est. Total at Maturity")
     }
 

@@ -48,6 +48,7 @@ object Routes {
     const val BANK_LIST = "bankList/{bankName}"
     const val CALENDAR = "calendar"
     const val HOME_DETAIL = "homeDetail/{type}"
+    const val HELP = "help"
 
     fun edit(depositId: Long? = null) = "edit?depositId=${depositId ?: -1}"
     fun detail(depositId: Long) = "detail/$depositId"
@@ -125,7 +126,14 @@ fun AppNavHost(repository: DepositRepository) {
                 )
             }
             composable(Routes.LOG) { LogScreen(repository) }
-            composable(Routes.SETTINGS) { SettingsScreen(repository) }
+            composable(Routes.SETTINGS) { SettingsScreen(repository, onOpenHelp = { navController.navigate(Routes.HELP) }) }
+
+            composable(Routes.HELP) {
+                com.pxy.depositbook.ui.screen.help.HelpScreen(
+                    repository = repository,
+                    onBack = { navController.popBackStack() },
+                )
+            }
 
             composable(
                 route = Routes.EDIT,

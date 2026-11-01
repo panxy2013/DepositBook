@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
 | v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
 | v1.0.13 | [deposit-book-v1.0.13.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.13/deposit-book-v1.0.13.apk) |
 | v1.0.12 | [deposit-book-v1.0.12.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.12/deposit-book-v1.0.12.apk) |
@@ -60,6 +61,16 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.15（2026-11-01）
+- **新增「使用教学」**（设置 → 使用教学）：按板块图文讲解 App 工作流程（总览 / 六步新增 / 日历 / 统计 / 到期提醒 / 导入导出 / 多账户 / 应用锁），页面配真实截图；教学页可一键「填充示例数据 / 清除示例数据」，边看边学不碰真实数据
+- **修复重要崩溃**：总览页同时存在「即将到期提醒」与「全部存款」时，列表 key 重复导致启动即闪退（v1.0.15 起不再发生，强烈建议升级）
+- **结清锁定**：存款可「标记为已结清」，结清后锁定不可修改；详情页可「标记为未结清（恢复计息）」解锁编辑，操作留痕日志
+- **到期提醒增强**：提前提醒天数可在设置里调整（默认 30 天，1–365 天，±5 调节 + 立即检查一次）；首页「N 天内到期」卡片可点进去看明细（含已到期），按到期日排序
+- **回答你此前的疑问**：到期提醒原本的具体动作是——每天自动检查一次，有临期/已到期存单时发一条系统通知（列出笔数）；现在补上了可配置天数 + 首页钻取明细
+- **银行图标补全**：详情页标题行、统计页账户明细行也显示银行 Logo（此前仅总览卡片有）
+- **设置页重排**：账户 → 安全 → 隐私 → 导入 → 导出 → 提醒 → 选项维护 → 语言 → 关于
+- **产品名称支持「恢复默认」**；选项维护导入防重复增强（延续 v1.0.14）
 
 ### v1.0.14（2026-11-01）
 - **选项维护 → 从已有存款导入优化**：

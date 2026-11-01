@@ -7,6 +7,7 @@ import com.pxy.depositbook.data.model.DepositUi
 import com.pxy.depositbook.data.model.StatsCalculator
 import com.pxy.depositbook.data.model.SummaryStats
 import com.pxy.depositbook.data.repo.DepositRepository
+import com.pxy.depositbook.util.RemindConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,7 +35,7 @@ class HomeViewModel(private val repo: DepositRepository) : ViewModel() {
                     compareBy<DepositUi> { it.expired }
                         .thenBy { it.daysLeft }
                 ),
-                expiringSoon = ui.filter { it.deposit.isActive && it.daysLeft in 0..30 }
+                expiringSoon = ui.filter { it.deposit.isActive && it.daysLeft in 0 until RemindConfig.days }
                     .sortedBy { it.daysLeft },
             )
         }

@@ -34,28 +34,37 @@ class ReminderWorker(
         val dao = db.depositDao()
         val deposits = dao.getAllOnce().filter { it.isActive }
         val today = DateUtils.today()
+        val remindDays = com.pxy.depositbook.data.prefs.OptionsStore(applicationContext).reminderDays()
 
-        // 每日记录一次资产快照（历史数据：之后删除/结清存单不影响已有记录）
+        // 每日记录资产快照（历史数据：之后删除/结清存单不影响已有记录）。
+        // 多账户：每个账户各记各的快照，金额只统计本账户存款。
         runCatching {
-            val summary = com.pxy.depositbook.data.model.StatsCalculator.summarize(dao.getAllOnce())
-            db.assetSnapshotDao().upsert(
-                com.pxy.depositbook.data.entity.AssetSnapshot(
-                    day = today.toString(),
-                    totalPrincipal = summary.totalPrincipal,
-                    totalInterest = summary.totalInterestEarned,
-                    totalValue = summary.totalValueNow,
-                    activeCount = summary.activeCount,
-                    recordedAt = System.currentTimeMillis(),
+            val all = dao.getAllOnce()
+            val profiles = db.profileDao().getAllOnce()
+            profiles.forEach { p ->
+                val dep = all.filter { it.profileId == p.id }
+                if (dep.isEmpty()) return@forEach
+                val summary = com.pxy.depositbook.data.model.StatsCalculator.summarize(dep)
+                db.assetSnapshotDao().upsert(
+                    com.pxy.depositbook.data.entity.AssetSnapshot(
+                        profileId = p.id,
+                        day = today.toString(),
+                        totalPrincipal = summary.totalPrincipal,
+                        totalInterest = summary.totalInterestEarned,
+                        totalValue = summary.totalValueNow,
+                        activeCount = summary.activeCount,
+                        recordedAt = System.currentTimeMillis(),
+                    )
                 )
-            )
+            }
         }
 
         val toRemind = deposits.filter { d ->
             val left = InterestCalculator.daysLeft(d, today)
-            left in 0..30
+            left in 0 until remindDays
         }
         if (toRemind.isNotEmpty()) {
-            notify(applicationContext, toRemind.size)
+            notify(applicationContext, toRemind.size, remindDays)
         }
         return Result.success()
     }
@@ -64,7 +73,7 @@ class ReminderWorker(
         private const val CHANNEL_ID = "deposit_reminder"
         private const val NOTIFICATION_ID = 1001
 
-        fun notify(context: Context, count: Int) {
+        fun notify(context: Context, count: Int, days: Int = 30) {
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED
@@ -76,7 +85,7 @@ class ReminderWorker(
                     CHANNEL_ID,
                     I18n.s("存款到期提醒", "Maturity Reminders"),
                     NotificationManager.IMPORTANCE_DEFAULT
-                ).apply { description = I18n.s("存款到期前 30 天提醒", "Notify 30 days before deposit maturity") }
+                ).apply { description = I18n.s("存款到期前 $days 天提醒", "Notify $days days before deposit maturity") }
                 nm.createNotificationChannel(channel)
             }
 
@@ -89,8 +98,8 @@ class ReminderWorker(
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(com.pxy.depositbook.util.I18n.s(
-                    "有 $count 笔存款将在 30 天内到期",
-                    "$count deposits mature within 30 days",
+                    "有 $count 笔存款将在 $days 天内到期",
+                    "$count deposits mature within $days days",
                 ))
                 .setContentText(com.pxy.depositbook.util.I18n.s("点击查看并安排续存或取出", "Tap to view and arrange rollover or withdrawal"))
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)

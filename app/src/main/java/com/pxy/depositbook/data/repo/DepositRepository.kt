@@ -75,6 +75,12 @@ class DepositRepository(
         log(deposit, "SETTLE")
     }
 
+    /** 已结清 → 恢复计息（锁定解除，可再次修改） */
+    suspend fun unsettle(deposit: Deposit) {
+        depositDao.update(deposit.copy(isActive = true, updatedAt = System.currentTimeMillis()))
+        log(deposit, "UNSETTLE")
+    }
+
     suspend fun addLog(action: String, content: String) {
         logDao.insert(OperationLog(action = action, content = content, profileId = pid()))
     }
@@ -120,8 +126,53 @@ class DepositRepository(
         snapshotDao.upsert(snapshot)
     }
 
-    /** 历史快照：按日期升序返回（当前账户） */
-    fun observeSnapshots(): Flow<List<AssetSnapshot>> =
+    /**
+     * 教学示例数据（备注带「示例数据」标记，可一键清除）：
+     * 覆盖各种形态——在存、临期、已到期未结清、已结清，
+     * 用户点着示例学习各页面。
+     */
+    suspend fun addDemoData(): Int {
+        val now = System.currentTimeMillis()
+        val dayMs = 86400000L
+        fun deposit(
+            bank: String, product: String, principal: Double, rate: Double,
+            startDaysAgo: Long, termDays: Int, settled: Boolean = false,
+        ) = Deposit(
+            profileId = pid(),
+            accountName = bank,
+            productName = product,
+            principal = principal,
+            annualRate = rate,
+            startDate = now - startDaysAgo * dayMs,
+            endDate = now - startDaysAgo * dayMs + termDays * dayMs,
+            termDays = termDays,
+            note = "示例数据 Demo",
+            isActive = !settled,
+        )
+        val demos = listOf(
+            deposit("中国工商银行", "3年期整存整取", 80000.0, 0.0265, 200, 1095),
+            deposit("中国建设银行", "1年期整存整取", 50000.0, 0.0235, 30, 365),
+            deposit("招商银行", "大额存单（20万起）", 200000.0, 0.0285, 10, 1095),
+            deposit("中国银行", "1年期整存整取", 60000.0, 0.023, 355, 365),
+            deposit("交通银行", "2年期整存整取", 30000.0, 0.0245, 400, 730),
+            deposit("中国邮政储蓄银行", "1年期整存整取", 20000.0, 0.02, 500, 365, settled = true),
+        )
+        demos.forEach { save(it) }
+        return demos.size
+    }
+
+    /** 是否已有示例数据（当前账户） */
+    suspend fun hasDemoData(): Boolean =
+        getAllOnce().any { it.note?.contains("示例数据") == true }
+
+    /** 清除示例数据（仅删除备注带「示例数据」标记的记录），返回删除条数 */
+    suspend fun removeDemoData(): Int {
+        val demo = getAllOnce().filter { it.note?.contains("示例数据") == true }
+        demo.forEach { delete(it) }
+        return demo.size
+    }
+
+    /** 历史快照：按日期升序返回（当前账户） */    fun observeSnapshots(): Flow<List<AssetSnapshot>> =
         kotlinx.coroutines.flow.combine(snapshotDao.observeAll(), accounts.currentId) { list, p ->
             list.filter { it.profileId == p }
         }
@@ -149,6 +200,7 @@ class DepositRepository(
                     I18n.s("本金 ${FormatUtils.moneyPlain(deposit.principal)}，年化 ${FormatUtils.rate(deposit.annualRate)}", "principal ${FormatUtils.moneyPlain(deposit.principal)}, rate ${FormatUtils.rate(deposit.annualRate)}")
             "DELETE" -> I18n.s("删除 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}", "Deleted ${deposit.accountName}, principal ${FormatUtils.moneyPlain(deposit.principal)}")
             "SETTLE" -> I18n.s("结清 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}", "Settled ${deposit.accountName}, principal ${FormatUtils.moneyPlain(deposit.principal)}")
+            "UNSETTLE" -> I18n.s("恢复计息 ${deposit.accountName} 本金 ${FormatUtils.moneyPlain(deposit.principal)}", "Reactivated ${deposit.accountName}, principal ${FormatUtils.moneyPlain(deposit.principal)}")
             else -> "$action ${deposit.accountName}"
         }
         logDao.insert(

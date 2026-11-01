@@ -177,7 +177,7 @@ fun HomeScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MiniStat(
-                        label = I18n.s("30天内到期", "Due in 30 days"),
+                        label = I18n.s("${options.reminderDays()}天内到期", "Due in ${options.reminderDays()} days"),
                         value = I18n.s("${state.summary.expiringSoonCount} 笔", "${state.summary.expiringSoonCount} items"),
                         valueColor = Warning,
                         icon = { Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.height(14.dp), tint = Warning) },
@@ -198,7 +198,7 @@ fun HomeScreen(
                     Spacer(Modifier.height(4.dp))
                     SectionHeader(I18n.s("即将到期提醒", "Expiring soon"))
                 }
-                items(state.expiringSoon, key = { it.deposit.id }) { ui ->
+                items(state.expiringSoon, key = { "exp-${it.deposit.id}" }) { ui ->
                     DepositCard(ui = ui, onClick = { onOpenDeposit(ui.deposit.id) })
                 }
             }
@@ -227,7 +227,7 @@ fun HomeScreen(
                 }
             }
 
-            items(state.deposits.withIndex().toList(), key = { it.value.deposit.id }) { indexed ->
+            items(state.deposits.withIndex().toList(), key = { "all-${it.value.deposit.id}" }) { indexed ->
                 val ui = indexed.value
                 val idx = indexed.index + 1
                 Row(verticalAlignment = Alignment.CenterVertically) {

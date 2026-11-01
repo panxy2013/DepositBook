@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
@@ -88,7 +89,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun SettingsScreen(repository: DepositRepository) {
+fun SettingsScreen(repository: DepositRepository, onOpenHelp: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val optionsStore = remember { (context.applicationContext as DepositApp).options }
@@ -235,27 +236,13 @@ fun SettingsScreen(repository: DepositRepository) {
         Text(I18n.s("设置", "Settings"), style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(4.dp))
 
-        SettingsGroup(I18n.s("语言 Language", "Language 语言")) {
-            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(I18n.s("显示语言", "Display language"))
-                        Text(
-                            I18n.s("中英文可随时切换，界面立即生效", "Switch anytime; applies instantly"),
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Row {
-                        TextButton(onClick = { I18n.switchTo(I18n.ZH); message = I18n.s("已切换为中文", "Switched to Chinese") }) {
-                            Text(if (I18n.isZh) "● 中文" else "中文")
-                        }
-                        TextButton(onClick = { I18n.switchTo(I18n.EN); message = I18n.s("已切换为英文", "Switched to English") }) {
-                            Text(if (!I18n.isZh) "● English" else "English")
-                        }
-                    }
-                }
-            }
+        SettingsGroup(I18n.s("使用教学", "Tutorial")) {
+            SettingsItem(
+                icon = { Icon(Icons.Outlined.School, null) },
+                title = I18n.s("使用教学", "Tutorial"),
+                subtitle = I18n.s("分板块讲解工作流程，可填充示例数据边看边学", "Section-by-section guide with demo data to explore"),
+                onClick = onOpenHelp,
+            )
         }
 
         SettingsGroup(I18n.s("账户", "Accounts")) {
@@ -313,7 +300,7 @@ fun SettingsScreen(repository: DepositRepository) {
                 // 新建账户
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        I18n.s("不同账户的存款各自独立记录", "Each account keeps its own deposits"),
+                        I18n.s("删除账户前请先导出备份", "Export a backup before deleting an account"),
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -323,6 +310,31 @@ fun SettingsScreen(repository: DepositRepository) {
                         Spacer(Modifier.width(4.dp))
                         Text(I18n.s("新建账户", "New account"))
                     }
+                }
+            }
+        }
+
+        SecuritySection()
+
+        SettingsGroup(I18n.s("隐私", "Privacy")) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(I18n.s("总览默认隐藏金额", "Hide amounts on Home by default"))
+                        Text(
+                            I18n.s("开启后进入总览页默认显示 ***，点右上角眼睛可随时切换", "When on, Home shows *** by default; tap the eye icon to toggle"),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = privacyDefaultOn,
+                        onCheckedChange = { checked ->
+                            privacyDefaultOn = checked
+                            optionsStore.setPrivacyDefault(checked)
+                            message = if (checked) I18n.s("已开启默认隐藏金额", "Hide-by-default: on") else I18n.s("已关闭默认隐藏金额", "Hide-by-default: off")
+                        },
+                    )
                 }
             }
         }
@@ -389,6 +401,44 @@ fun SettingsScreen(repository: DepositRepository) {
                 subtitle = I18n.s("删除所有存款与日志，不可恢复", "Delete all deposits and logs. Irreversible."),
                 onClick = { showClearDialog = true },
             )
+        }
+
+        SettingsGroup(I18n.s("提醒", "Reminders")) {
+            Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                var remindDays by remember { mutableStateOf(optionsStore.reminderDays()) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(I18n.s("到期提醒", "Maturity reminders"))
+                        Text(
+                            I18n.s("每天自动检查：存款到期前 $remindDays 天开始提醒", "Checked daily: reminder starts $remindDays days before maturity"),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Row {
+                        TextButton(onClick = {
+                            remindDays = (remindDays - 5).coerceIn(1, 365)
+                            optionsStore.setReminderDays(remindDays)
+                            ReminderScheduler.schedule(context)
+                        }) { Text("−") }
+                        Text("$remindDays ${I18n.s("天", "d")}", fontWeight = FontWeight.Medium)
+                        TextButton(onClick = {
+                            remindDays = (remindDays + 5).coerceIn(1, 365)
+                            optionsStore.setReminderDays(remindDays)
+                            ReminderScheduler.schedule(context)
+                        }) { Text("+") }
+                    }
+                }
+                SettingsItem(
+                    icon = { Icon(Icons.Outlined.Notifications, null) },
+                    title = I18n.s("立即按当前设置检查一次", "Check now with current settings"),
+                    subtitle = I18n.s("马上按以上天数重新安排每日检查", "Reschedule the daily check with the current days"),
+                    onClick = {
+                        ReminderScheduler.schedule(context)
+                        showStatus(I18n.s("已安排每日到期检查（提前 $remindDays 天）", "Daily maturity check scheduled ($remindDays days ahead)"))
+                    },
+                )
+            }
         }
 
         SettingsGroup(I18n.s("选项维护", "Options")) {
@@ -492,45 +542,36 @@ fun SettingsScreen(repository: DepositRepository) {
                     optionsStore.renameProduct(old, new)
                     refresh()
                 },
-            )
-        }
-
-        SettingsGroup(I18n.s("提醒", "Reminders")) {
-            SettingsItem(
-                icon = { Icon(Icons.Outlined.Notifications, null) },
-                title = I18n.s("到期提醒", "Maturity reminders"),
-                subtitle = I18n.s("到期前 30 天内每天检查并推送通知", "Daily check and notify within 30 days before maturity"),
-                onClick = {
-                    ReminderScheduler.schedule(context)
-                    showStatus(I18n.s("已安排每日到期检查", "Daily maturity check scheduled"))
+                onReset = {
+                    optionsStore.setProductDefs(OptionsStore.DEFAULT_PRODUCT_DEFS)
+                    refresh()
+                    showStatus(I18n.s("产品名称已恢复默认", "Products reset to defaults"))
                 },
             )
         }
 
-        SettingsGroup(I18n.s("隐私", "Privacy")) {
+        SettingsGroup(I18n.s("语言 Language", "Language 语言")) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(I18n.s("总览默认隐藏金额", "Hide amounts on Home by default"))
+                        Text(I18n.s("显示语言", "Display language"))
                         Text(
-                            I18n.s("开启后进入总览页默认显示 ***，点右上角眼睛可随时切换", "When on, Home shows *** by default; tap the eye icon to toggle"),
+                            I18n.s("中英文可随时切换，界面立即生效", "Switch anytime; applies instantly"),
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    androidx.compose.material3.Switch(
-                        checked = privacyDefaultOn,
-                        onCheckedChange = { checked ->
-                            privacyDefaultOn = checked
-                            optionsStore.setPrivacyDefault(checked)
-                            message = if (checked) I18n.s("已开启默认隐藏金额", "Hide-by-default: on") else I18n.s("已关闭默认隐藏金额", "Hide-by-default: off")
-                        },
-                    )
+                    Row {
+                        TextButton(onClick = { I18n.switchTo(I18n.ZH); message = I18n.s("已切换为中文", "Switched to Chinese") }) {
+                            Text(if (I18n.isZh) "● 中文" else "中文")
+                        }
+                        TextButton(onClick = { I18n.switchTo(I18n.EN); message = I18n.s("已切换为英文", "Switched to English") }) {
+                            Text(if (!I18n.isZh) "● English" else "English")
+                        }
+                    }
                 }
             }
         }
-
-        SecuritySection()
 
         SettingsGroup(I18n.s("关于", "About")) {
             Column(Modifier.padding(16.dp)) {
@@ -825,12 +866,23 @@ private fun ProductOptionsSection(
     onUpdate: (ProductDef) -> Unit,
     onRemove: (String) -> Unit,
     onRename: (String, String) -> Unit,
+    onReset: () -> Unit,
 ) {
     var showAdd by remember { mutableStateOf(false) }
     var editingDef by remember { mutableStateOf<ProductDef?>(null) }
 
     Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(I18n.s("产品名称", "Products"), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                I18n.s("产品名称", "Products"),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f),
+            )
+            TextButton(onClick = onReset) {
+                Text(I18n.s("恢复默认", "Reset"), fontSize = 12.sp)
+            }
+        }
         Spacer(Modifier.height(6.dp))
 
         defs.forEach { def ->

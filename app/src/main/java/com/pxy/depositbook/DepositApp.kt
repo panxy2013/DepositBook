@@ -28,6 +28,8 @@ class DepositApp : Application() {
         super.onCreate()
         // 读取已保存的显示语言（默认中文）
         I18n.init(options.language()) { options.setLanguage(it) }
+        // 提前提醒天数（到期判断全局使用）
+        com.pxy.depositbook.util.RemindConfig.refresh(this)
         ReminderScheduler.schedule(this)
     }
 }

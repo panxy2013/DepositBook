@@ -131,7 +131,13 @@ fun DepositDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(d.accountName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (com.pxy.depositbook.data.model.BankCatalog.isBuiltIn(d.accountName)) {
+                                com.pxy.depositbook.ui.components.BankIcon(d.accountName, size = 30.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(d.accountName, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
                         when {
                             current.expired -> Pill(I18n.s("已到期", "Matured"), Color(0xFF6B7B8A), Color(0xFFE8EBEF))
                             current.urgent -> Pill(I18n.s("${current.daysLeft}天后到期", "Due in ${current.daysLeft} days"), Danger, DangerLight)
@@ -211,6 +217,18 @@ fun DepositDetailScreen(
                     Icon(Icons.Outlined.CheckCircle, null, tint = Accent)
                     Spacer(Modifier.width(6.dp))
                     Text(I18n.s("标记为已结清", "Mark as settled"), color = Accent)
+                }
+            } else {
+                Spacer(Modifier.height(4.dp))
+                TextButton(onClick = {
+                    scope.launch {
+                        repository.unsettle(d)
+                        repository.get(depositId)?.let { ui = StatsCalculator.toUi(it) }
+                    }
+                }) {
+                    Icon(Icons.Outlined.CheckCircle, null, tint = Accent)
+                    Spacer(Modifier.width(6.dp))
+                    Text(I18n.s("标记为未结清（恢复计息，解锁编辑）", "Mark as unsettled (resume interest, unlock editing)"), color = Accent)
                 }
             }
         }
