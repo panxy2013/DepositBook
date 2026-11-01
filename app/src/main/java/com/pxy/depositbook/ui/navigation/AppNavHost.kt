@@ -49,6 +49,9 @@ object Routes {
     const val CALENDAR = "calendar"
     const val HOME_DETAIL = "homeDetail/{type}"
     const val HELP = "help"
+    const val HELP_DEMO = "helpDemo/{key}"
+
+    fun helpDemo(key: String): String = "helpDemo/$key"
 
     fun edit(depositId: Long? = null) = "edit?depositId=${depositId ?: -1}"
     fun detail(depositId: Long) = "detail/$depositId"
@@ -132,6 +135,18 @@ fun AppNavHost(repository: DepositRepository) {
                 com.pxy.depositbook.ui.screen.help.HelpScreen(
                     repository = repository,
                     onBack = { navController.popBackStack() },
+                    onOpenDemo = { key -> navController.navigate(Routes.helpDemo(key)) },
+                )
+            }
+
+            composable(
+                Routes.HELP_DEMO,
+                arguments = listOf(navArgument("key") { type = NavType.StringType }),
+            ) { entry ->
+                val key = entry.arguments?.getString("key") ?: "add"
+                com.pxy.depositbook.ui.screen.help.DemoPlayerScreen(
+                    demoKey = key,
+                    onExit = { navController.popBackStack() },
                 )
             }
 

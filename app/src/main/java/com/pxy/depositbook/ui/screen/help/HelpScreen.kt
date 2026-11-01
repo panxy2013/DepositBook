@@ -36,6 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -56,7 +58,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pxy.depositbook.data.repo.DepositRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+
+/** 演示账户的固定名称（保证跨语言可定位/复用） */
+const val DEMO_ACCOUNT_NAME = "演示账户 (Demo)"
 
 /**
  * 使用教学：按板块说明 App 的工作流程。
@@ -68,13 +74,20 @@ import kotlinx.coroutines.launch
 fun HelpScreen(
     repository: DepositRepository,
     onBack: () -> Unit,
+    onOpenDemo: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var demoCount by remember { mutableStateOf(-1) }
 
-    LaunchedEffect(Unit) {
-        demoCount = if (repository.hasDemoData()) 1 else 0
+    // 多账户（用于演示账户）
+    val accounts = repository.accounts
+    val profiles by accounts.profiles.collectAsStateWithLifecycle()
+    val currentId by accounts.currentId.collectAsStateWithLifecycle()
+    val demoProfile = profiles.firstOrNull { it.name == DEMO_ACCOUNT_NAME }
+    var hasDemoRows by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentId) {
+        hasDemoRows = repository.hasDemoData()
     }
 
     Scaffold(
@@ -97,47 +110,128 @@ fun HelpScreen(
         ) {
             item(key = "item-0") {
                 Column(Modifier.fillMaxWidth()) {
+                    // 演示账户（置顶）
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        when {
+                            demoProfile == null -> {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            val id = accounts.ensureProfile(DEMO_ACCOUNT_NAME)
+                                            accounts.switchTo(id)
+                                            val n = repository.addDemoData()
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                I18n.s("已创建演示账户并插入 $n 笔示例存款", "Demo account created with $n sample deposits"),
+                                                android.widget.Toast.LENGTH_LONG,
+                                            ).show()
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(I18n.s("创建演示账户（+示例数据）", "Create demo account (+data)")) }
+                            }
+                            currentId == demoProfile.id -> {
+                                OutlinedButton(
+                                    onClick = {
+                                        scope.launch {
+                                            profiles.firstOrNull { it.id != demoProfile.id }?.let { accounts.switchTo(it.id) }
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                I18n.s("已切回日常账户", "Back to your own account"),
+                                                android.widget.Toast.LENGTH_SHORT,
+                                            ).show()
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(I18n.s("切回日常账户", "Back to my account")) }
+                            }
+                            else -> {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            accounts.switchTo(demoProfile.id)
+                                            if (!repository.hasDemoData()) repository.addDemoData()
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) { Text(I18n.s("切换到演示账户", "Switch to demo account")) }
+                            }
+                        }
+                        // 关闭演示账户：删除演示账户及其全部示例数据
+                        if (demoProfile != null) {
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        profiles.firstOrNull { it.id != demoProfile.id }?.let { accounts.switchTo(it.id) }
+                                        accounts.deleteProfile(demoProfile.id)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            I18n.s("演示账户已关闭并删除", "Demo account closed and deleted"),
+                                            android.widget.Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                },
+                            ) { Text(I18n.s("关闭演示账户", "Close demo account")) }
+                        }
+                    }
+                    if (demoProfile != null) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            I18n.s(
+                                if (currentId == demoProfile.id) "当前在演示账户，随便操作不影响真实数据"
+                                else "演示账户已就绪，切换过去即可安全试玩",
+                                if (currentId == demoProfile.id) "You're in the demo account - safe to explore"
+                                else "Demo account ready - switch over to try things safely",
+                            ),
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+
                     Text(
                         I18n.s(
-                            "这一页按板块讲解存款账本的完整工作流程；底部可以一键填充（或清除）示例数据，边看边学。",
-                            "Each section walks you through how this app works. Use the demo data below to explore with real examples.",
+                            "选一个分步演示，用真实截图 + 红框标注一步步学会；也可以切到演示账户亲手操作。",
+                            "Pick a guided demo (real screenshots with red boxes), or switch to the demo account and try it yourself.",
                         ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(10.dp))
+
+                    // 分步演示列表
+                    Text(
+                        I18n.s("分步演示（红框标注 + 中文语音）", "Guided demos (red boxes + Chinese voice)"),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                     Spacer(Modifier.height(8.dp))
-                    // 示例数据按钮
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Button(onClick = {
-                            scope.launch {
-                                val n = repository.addDemoData()
-                                demoCount = 1
-                                android.widget.Toast.makeText(
-                                    context,
-                                    I18n.s("已插入 $n 笔示例存款（当前账户）", "$n demo deposits inserted (current account)"),
-                                    android.widget.Toast.LENGTH_LONG,
-                                ).show()
-                            }
-                        }) {
-                            Text(I18n.s("填充示例数据", "Insert demo data"))
-                        }
-                        if (demoCount > 0) {
-                            OutlinedButton(onClick = {
-                                scope.launch {
-                                    val n = repository.removeDemoData()
-                                    demoCount = 0
-                                    android.widget.Toast.makeText(
-                                        context,
-                                        I18n.s("已清除 $n 笔示例存款", "$n demo deposits removed"),
-                                        android.widget.Toast.LENGTH_LONG,
-                                    ).show()
-                                }
-                            }) {
-                                Text(I18n.s("清除示例数据", "Remove demo data"))
-                            }
-                        }
-                    }
                 }
+            }
+
+            items(DEMO_INDEX, key = { "demo-${it.key}" }) { item ->
+                DemoEntryCard(
+                    emoji = item.emoji,
+                    titleZh = item.titleZh,
+                    titleEn = item.titleEn,
+                    descZh = item.descZh,
+                    descEn = item.descEn,
+                    stepCount = item.stepCount,
+                    onClick = { onOpenDemo(item.key) },
+                )
+            }
+
+            item(key = "chapters-head") {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    I18n.s("文字说明", "Text guide"),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
             }
 
             item(key = "item-1") { TutorialShot("workflow") }

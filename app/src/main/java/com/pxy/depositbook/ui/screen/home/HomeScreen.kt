@@ -193,16 +193,6 @@ fun HomeScreen(
                 }
             }
 
-            if (state.expiringSoon.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(4.dp))
-                    SectionHeader(I18n.s("即将到期提醒", "Expiring soon"))
-                }
-                items(state.expiringSoon, key = { "exp-${it.deposit.id}" }) { ui ->
-                    DepositCard(ui = ui, onClick = { onOpenDeposit(ui.deposit.id) })
-                }
-            }
-
             item {
                 Spacer(Modifier.height(4.dp))
                 SectionHeader(I18n.s("全部存款（${state.deposits.size} 笔）", "All deposits (${state.deposits.size})"))

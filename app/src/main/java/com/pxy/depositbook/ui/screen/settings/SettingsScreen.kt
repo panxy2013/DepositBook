@@ -1,4 +1,8 @@
 package com.pxy.depositbook.ui.screen.settings
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.Manifest
 
 import com.pxy.depositbook.util.I18n
 
@@ -406,6 +410,29 @@ fun SettingsScreen(repository: DepositRepository, onOpenHelp: () -> Unit = {}) {
         SettingsGroup(I18n.s("提醒", "Reminders")) {
             Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                 var remindDays by remember { mutableStateOf(optionsStore.reminderDays()) }
+                var notifGranted by remember {
+                    mutableStateOf(
+                        if (Build.VERSION.SDK_INT < 33) true
+                        else ContextCompat.checkSelfPermission(
+                            context, Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED,
+                    )
+                }
+                if (!notifGranted && Build.VERSION.SDK_INT >= 33) {
+                    SettingsItem(
+                        icon = { Icon(Icons.Outlined.NotificationsOff, null) },
+                        title = I18n.s("通知权限未开启", "Notifications are off"),
+                        subtitle = I18n.s("到期提醒需要通知权限，点此去系统设置开启", "Enable notifications in system settings to get reminders"),
+                        onClick = {
+                            runCatching {
+                                context.startActivity(
+                                    Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName),
+                                )
+                            }
+                        },
+                    )
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(I18n.s("到期提醒", "Maturity reminders"))
@@ -579,8 +606,8 @@ fun SettingsScreen(repository: DepositRepository, onOpenHelp: () -> Unit = {}) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     I18n.s(
-                        "本地离线存储，数据只保存在本机。\n利息按「本金 × 年化 ÷ 365 × 已存天数」计算，与 Excel 账本口径一致。",
-                        "Local offline storage; data stays on this device only.\nInterest = principal × annual rate ÷ 365 × days held, same as the Excel ledger.",
+                        "本地离线存储，数据只保存在本机。",
+                        "Local offline storage; data stays on this device only.",
                     ),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

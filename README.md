@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
 | v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
 | v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
 | v1.0.13 | [deposit-book-v1.0.13.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.13/deposit-book-v1.0.13.apk) |
@@ -61,6 +62,16 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 ---
 
 ## 更新历史
+
+### v1.0.16（2026-11-01）
+- **使用教学全面升级**：教学页顶部可直接「创建演示账户 / 切换 / 切回日常账户 / 关闭演示账户」，一键插入示例数据，随便操作不碰真实数据
+- **7 个分步演示（PPT 式 + 中文语音 + 红框标注）**：新增存款、删除存款、总览页怎么看、统计与日历、操作日志、多账户与改名、设置与选项维护；每步用真实截图 + 红框标出要点位置，自动播放或点「下一步」手动推进，语音可开关
+- **总览精简**：删除「即将到期提醒」独立区段，临期存款直接在「全部存款」中高亮（30 天内到期卡片仍可钻取明细，新增「今日新增利息明细」入口）
+- **教学入口置顶**：设置页「使用教学」移到最顶部
+- **关于页精简**：删除利息计算公式描述行
+- **日期弹窗跟随 App 语言**：App 内切换中英文后，日期选择弹窗同步切换（此前固定跟随系统）
+- **首次启动通知权限只询问一次**：Android 13+ 安装后仅弹一次，拒绝后不再反复弹窗；设置 → 提醒 新增「通知权限未开启」引导，可直达系统设置
+- **升级安全**：覆盖安装自动执行数据库迁移（2→3 多账户结构），旧存款与日志归入「默认账户」，数据不丢失
 
 ### v1.0.15（2026-11-01）
 - **新增「使用教学」**（设置 → 使用教学）：按板块图文讲解 App 工作流程（总览 / 六步新增 / 日历 / 统计 / 到期提醒 / 导入导出 / 多账户 / 应用锁），页面配真实截图；教学页可一键「填充示例数据 / 清除示例数据」，边看边学不碰真实数据

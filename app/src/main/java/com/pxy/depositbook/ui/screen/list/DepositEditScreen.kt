@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -650,19 +651,33 @@ fun DepositEditScreen(
         val state = rememberDatePickerState(
             initialSelectedDateMillis = DateUtils.toMillis(startDate)
         )
-        DatePickerDialog(
-            onDismissRequest = { showStartPicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    state.selectedDateMillis?.let { startDate = DateUtils.toDate(it) }
-                    dateModified = true
-                    showStartPicker = false
-                }) { Text(I18n.s("确定", "OK")) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStartPicker = false }) { Text(I18n.s("取消", "Cancel")) }
-            },
-        ) { DatePicker(state = state) }
+        // 日期弹窗跟随 App 内语言（系统 DatePicker 默认取系统语言，这里强制成 App 当前语言）
+        val baseCtx = LocalContext.current
+        val dateCtx = remember(baseCtx, I18n.isZh) {
+            val tag = if (I18n.isZh) "zh-CN" else "en-US"
+            val cfg = android.content.res.Configuration(baseCtx.resources.configuration).apply {
+                setLocale(java.util.Locale.forLanguageTag(tag))
+                setLayoutDirection(java.util.Locale.forLanguageTag(tag))
+            }
+            baseCtx.createConfigurationContext(cfg)
+        }
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalContext provides dateCtx,
+        ) {
+            DatePickerDialog(
+                onDismissRequest = { showStartPicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        state.selectedDateMillis?.let { startDate = DateUtils.toDate(it) }
+                        dateModified = true
+                        showStartPicker = false
+                    }) { Text(I18n.s("确定", "OK")) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showStartPicker = false }) { Text(I18n.s("取消", "Cancel")) }
+                },
+            ) { DatePicker(state = state) }
+        }
     }
 
     errorMsg?.let { msg ->

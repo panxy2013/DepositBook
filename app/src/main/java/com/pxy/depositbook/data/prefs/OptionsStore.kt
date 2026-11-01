@@ -128,6 +128,13 @@ class OptionsStore(context: Context) {
         prefs.edit().putString("language", tag).apply()
     }
 
+    /** Android 13+ 通知权限是否已询问过（安装后只问一次，避免每次启动反复弹窗） */
+    fun notifPermAsked(): Boolean = prefs.getBoolean("notif_perm_asked", false)
+
+    fun setNotifPermAsked() {
+        prefs.edit().putBoolean("notif_perm_asked", true).apply()
+    }
+
     fun banks(): List<String> = read(KEY_BANKS, DEFAULT_BANKS)
 
     fun addBank(name: String) {
