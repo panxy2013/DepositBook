@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.20 | [deposit-book-v1.0.20.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.20/deposit-book-v1.0.20.apk) |
 | v1.0.19 | [deposit-book-v1.0.19.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.19/deposit-book-v1.0.19.apk) |
 | v1.0.18 | [deposit-book-v1.0.18.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.18/deposit-book-v1.0.18.apk) |
 | v1.0.17 | [deposit-book-v1.0.17.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.17/deposit-book-v1.0.17.apk) |
@@ -66,6 +67,8 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 
 ## 更新历史
 
+### v1.0.20（2026-11-02）
+- **修复：到期日期没有跟着存款期限走**——先选好期限（如 2 年期）再去改存入日期时，到期日会被重置成「+1 年」；现在无论操作顺序如何，到期日都严格按所选存期计算
 ### v1.0.19（2026-11-02）
 - **关于页新增 GitHub 入口**：显示项目地址 `github.com/panxy2013/DepositBook`，点击可直接打开仓库；欢迎点个 Star ⭐ 支持
 

@@ -196,7 +196,8 @@ fun DepositEditScreen(
             },
         )
     }
-    var termCountInput by remember(origin, startDate) {
+    // 注意：键不能包含 startDate，否则用户先选存期、再改存入日期时，存期会被重置回默认 1 年
+    var termCountInput by remember(origin) {
         val d = (origin?.termDays ?: 365).toLong()
         val actualDays = if (origin != null) {
             val s = origin.startDate?.let { DateUtils.toDate(it) } ?: startDate
