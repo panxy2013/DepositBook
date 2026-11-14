@@ -42,7 +42,7 @@ fun PinLock(
     onSuccess: (String) -> Unit = {},
     onVerify: ((String) -> Boolean)? = null,
     onError: () -> Unit = {},
-    maxLength: Int = 4,
+    maxLength: Int = 6,
 ) {
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }

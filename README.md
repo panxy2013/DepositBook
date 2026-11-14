@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.21 | [deposit-book-v1.0.21.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.21/deposit-book-v1.0.21.apk) |
 | v1.0.20 | [deposit-book-v1.0.20.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.20/deposit-book-v1.0.20.apk) |
 | v1.0.19 | [deposit-book-v1.0.19.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.19/deposit-book-v1.0.19.apk) |
 | v1.0.18 | [deposit-book-v1.0.18.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.18/deposit-book-v1.0.18.apk) |
@@ -67,6 +68,9 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 
 ## 更新历史
 
+### v1.0.21（2026-11-15）
+- **数字密码从 4 位升级为 6 位**：设置与解锁界面均为 6 位（兼容查看旧版已设置的 4 位密码）
+- **开启应用锁流程加强**：启动保护时需依次配置 6 位数字密码和手势密码，每种都要**输入两次**、两次一致才生效；不匹配则重新输入两次
 ### v1.0.20（2026-11-02）
 - **修复：到期日期没有跟着存款期限走**——先选好期限（如 2 年期）再去改存入日期时，到期日会被重置成「+1 年」；现在无论操作顺序如何，到期日都严格按所选存期计算
 ### v1.0.19（2026-11-02）

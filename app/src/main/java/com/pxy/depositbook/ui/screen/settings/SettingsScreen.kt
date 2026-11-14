@@ -1329,6 +1329,8 @@ private fun SecuritySection() {
     var tempPattern by remember { mutableStateOf("") }
     // 当前设置弹窗针对的类型与设置完成后的动作（pendingEnable / pendingSwitch）
     var setType by remember { mutableStateOf("pin") }
+    // 弹窗流程：single = 只设置一种密码（修改/切换前补设）；enable = 开启保护，密码→手势依次配置
+    var flowMode by remember { mutableStateOf("single") }
     var pendingEnable by remember { mutableStateOf(false) }
     var pendingSwitch by remember { mutableStateOf(false) }
     var setupHint by remember { mutableStateOf("") }
@@ -1349,14 +1351,24 @@ private fun SecuritySection() {
                 androidx.compose.material3.Switch(
                     checked = enabled,
                     onCheckedChange = { checked ->
-                        if (checked && !pinConfigured) {
-                            // 规则：数字密码必须先配置
+                        if (checked && !security.isReady()) {
+                            // 规则：启动保护时依次配置 6 位数字密码和手势密码（各输入两次）
                             setType = "pin"
+                            flowMode = "enable"
                             pendingEnable = true
                             pendingSwitch = false
                             showSet = true
                             step = 0
-                            setupHint = I18n.s("开启应用锁前，请先设置数字密码", "Set a PIN before enabling app lock")
+                            setupHint = I18n.s("开启应用锁：请依次设置数字密码（6位）和手势密码，各输入两次", "Enabling app lock: set a 6-digit PIN and a pattern, each entered twice")
+                        } else if (checked && !patternConfigured) {
+                            // 数字密码已配置但手势未配置 → 补设手势（输入两次）后再开启
+                            setType = "pin"
+                            flowMode = "enable"
+                            pendingEnable = true
+                            pendingSwitch = false
+                            showSet = true
+                            step = 2
+                            setupHint = I18n.s("开启应用锁：请设置手势密码（输入两次）", "Enabling app lock: set a pattern (entered twice)")
                         } else {
                             enabled = checked
                             security.setEnabled(checked)
@@ -1376,6 +1388,7 @@ private fun SecuritySection() {
                         } else {
                             // 规则：切换前必须先配置目标方式
                             setType = target
+                            flowMode = "single"
                             pendingEnable = false
                             pendingSwitch = true
                             showSet = true
@@ -1393,6 +1406,7 @@ private fun SecuritySection() {
                 )
                 TextButton(onClick = {
                     setType = lockType
+                    flowMode = "single"
                     pendingEnable = false
                     pendingSwitch = false
                     showSet = true
@@ -1411,6 +1425,7 @@ private fun SecuritySection() {
             showSet = false
             pendingEnable = false
             pendingSwitch = false
+            flowMode = "single"
         }) {
             androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large) {
                 Column(Modifier.padding(8.dp)) {
@@ -1422,9 +1437,51 @@ private fun SecuritySection() {
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
-                    if (setType == "pin") {
+                    if (flowMode == "enable") {
+                        // 开启保护流程：数字密码（设+确认）→ 手势密码（设+确认）
+                        // 步骤：0 设密码 / 1 确认密码 / 2 设手势 / 3 确认手势
+                        // 两次不匹配时 onError 回到该段第 0 步，重新输入两次
+                        when (step) {
+                            0 -> PinLock(
+                                title = I18n.s("第 1/4 步：设置数字密码（6位）", "Step 1/4: Set PIN (6 digits)"),
+                                onSuccess = { pin -> tempPin = pin; step = 1 },
+                            )
+                            1 -> PinLock(
+                                title = I18n.s("第 2/4 步：确认数字密码", "Step 2/4: Confirm PIN"),
+                                onVerify = { it == tempPin },
+                                onSuccess = {
+                                    security.setPin(tempPin)
+                                    pinConfigured = true
+                                    step = 2
+                                },
+                                onError = { step = 0 }, // 两次不一致 → 重新输入两次
+                            )
+                            2 -> PatternLock(
+                                title = I18n.s("第 3/4 步：设置手势密码（至少4点）", "Step 3/4: Set pattern (at least 4 dots)"),
+                                onSuccess = { pattern -> tempPattern = pattern; step = 3 },
+                            )
+                            else -> PatternLock(
+                                title = I18n.s("第 4/4 步：确认手势密码", "Step 4/4: Confirm pattern"),
+                                onVerify = { it == tempPattern },
+                                onSuccess = {
+                                    security.setPattern(tempPattern)
+                                    patternConfigured = true
+                                    security.setEnabled(true)
+                                    enabled = true
+                                    security.setLockType("pin")
+                                    lockType = "pin"
+                                    showSet = false
+                                    pendingEnable = false
+                                    pendingSwitch = false
+                                    flowMode = "single"
+                                    setupHint = ""
+                                },
+                                onError = { step = 2 }, // 两次不一致 → 重新绘制两次
+                            )
+                        }
+                    } else if (setType == "pin") {
                         if (step == 0) {
-                            PinLock(title = I18n.s("设置数字密码（4位）", "Set PIN (4 digits)"), onSuccess = { pin -> tempPin = pin; step = 1 })
+                            PinLock(title = I18n.s("设置数字密码（6位）", "Set PIN (6 digits)"), onSuccess = { pin -> tempPin = pin; step = 1 })
                         } else {
                             PinLock(
                                 title = I18n.s("确认数字密码", "Confirm PIN"),

@@ -84,6 +84,8 @@ private fun LockContent(
                 modifier = Modifier.weight(1f),
                 title = I18n.s("请输入数字密码", "Enter your PIN"),
                 subtitle = subtitleText(methods.size),
+                // 点数跟随已存密码长度：新版 6 位；兼容旧版的 4 位
+                maxLength = if (savedPin.isNotBlank()) savedPin.length else 6,
                 onVerify = { it == savedPin },
                 onSuccess = { onUnlocked() },
             )
