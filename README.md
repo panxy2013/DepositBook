@@ -8,6 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
+| v1.0.22 | [deposit-book-v1.0.22.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.22/deposit-book-v1.0.22.apk) |
 | v1.0.21 | [deposit-book-v1.0.21.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.21/deposit-book-v1.0.21.apk) |
 | v1.0.20 | [deposit-book-v1.0.20.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.20/deposit-book-v1.0.20.apk) |
 | v1.0.19 | [deposit-book-v1.0.19.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.19/deposit-book-v1.0.19.apk) |
@@ -68,6 +69,10 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 
 ## 更新历史
 
+### v1.0.22（2026-11-15）
+- **应用锁设置页简化**：去掉「解锁方式」行（数字密码与手势密码默认都要配置）；改为「修改数字密码 / 修改手势密码」两个独立按钮
+- **开启应用锁必须完整配置**：从关闭到开启时必须依次设置数字密码（6位×2次）和手势密码（×2次）；中途取消或两次不一致导致未完成时，应用锁保持关闭不会生效
+- **金额显示完整不缩写**：所有金额一律显示实际数字（4 位分段，如 80000 → 8,0000、30001 → 3,0001、200000 → 20,0000），不再出现「万 / 亿 / k / M」缩写；四舍五入仅用于不足 1 元的金额，1 元以上完整显示到分（如 ¥8,1242.96）
 ### v1.0.21（2026-11-15）
 - **数字密码从 4 位升级为 6 位**：设置与解锁界面均为 6 位（兼容查看旧版已设置的 4 位密码）
 - **开启应用锁流程加强**：启动保护时需依次配置 6 位数字密码和手势密码，每种都要**输入两次**、两次一致才生效；不匹配则重新输入两次

@@ -1320,26 +1320,18 @@ private fun SecuritySection() {
     val app = context.applicationContext as com.pxy.depositbook.DepositApp
     val security = app.security
     var enabled by remember { mutableStateOf(security.isEnabled()) }
-    var lockType by remember { mutableStateOf(security.getLockType()) }
     var pinConfigured by remember { mutableStateOf(security.hasPin()) }
     var patternConfigured by remember { mutableStateOf(security.hasPattern()) }
     var showSet by remember { mutableStateOf(false) }
     var step by remember { mutableStateOf(0) }
     var tempPin by remember { mutableStateOf("") }
     var tempPattern by remember { mutableStateOf("") }
-    // 当前设置弹窗针对的类型与设置完成后的动作（pendingEnable / pendingSwitch）
+    // 当前设置弹窗针对的类型（single 流程里选择改数字密码还是手势密码）
     var setType by remember { mutableStateOf("pin") }
-    // 弹窗流程：single = 只设置一种密码（修改/切换前补设）；enable = 开启保护，密码→手势依次配置
+    // 弹窗流程：single = 只设置一种密码（修改）；enable = 开启保护，密码→手势依次配置
     var flowMode by remember { mutableStateOf("single") }
     var pendingEnable by remember { mutableStateOf(false) }
-    var pendingSwitch by remember { mutableStateOf(false) }
     var setupHint by remember { mutableStateOf("") }
-
-    fun hint(): String = when {
-        pinConfigured && patternConfigured -> I18n.s("两种密码均已配置，可在解锁界面切换", "Both methods configured; switch on the lock screen")
-        pinConfigured -> I18n.s("数字密码已配置；切换手势前会先要求设置手势", "PIN configured; you'll set a pattern before switching")
-        else -> I18n.s("尚未配置密码", "No PIN or pattern configured")
-    }
 
     SettingsGroup(I18n.s("安全", "Security")) {
         Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
@@ -1351,70 +1343,51 @@ private fun SecuritySection() {
                 androidx.compose.material3.Switch(
                     checked = enabled,
                     onCheckedChange = { checked ->
-                        if (checked && !security.isReady()) {
-                            // 规则：启动保护时依次配置 6 位数字密码和手势密码（各输入两次）
+                        if (checked) {
+                            // 规则：disable → enable 必须完整配置一遍（密码两次 + 手势两次）；
+                            // 中途取消或两次不一致导致未完成 → 不会开启保护
                             setType = "pin"
                             flowMode = "enable"
                             pendingEnable = true
-                            pendingSwitch = false
                             showSet = true
                             step = 0
+                            tempPin = ""
+                            tempPattern = ""
                             setupHint = I18n.s("开启应用锁：请依次设置数字密码（6位）和手势密码，各输入两次", "Enabling app lock: set a 6-digit PIN and a pattern, each entered twice")
-                        } else if (checked && !patternConfigured) {
-                            // 数字密码已配置但手势未配置 → 补设手势（输入两次）后再开启
-                            setType = "pin"
-                            flowMode = "enable"
-                            pendingEnable = true
-                            pendingSwitch = false
-                            showSet = true
-                            step = 2
-                            setupHint = I18n.s("开启应用锁：请设置手势密码（输入两次）", "Enabling app lock: set a pattern (entered twice)")
                         } else {
-                            enabled = checked
-                            security.setEnabled(checked)
+                            enabled = false
+                            security.setEnabled(false)
                         }
                     },
                 )
             }
             if (enabled) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(I18n.s("解锁方式", "Unlock method"), modifier = Modifier.weight(1f))
-                    TextButton(onClick = {
-                        val target = if (lockType == "pin") "pattern" else "pin"
-                        val configured = if (target == "pin") pinConfigured else patternConfigured
-                        if (configured) {
-                            lockType = target
-                            security.setLockType(target)
-                        } else {
-                            // 规则：切换前必须先配置目标方式
-                            setType = target
-                            flowMode = "single"
-                            pendingEnable = false
-                            pendingSwitch = true
-                            showSet = true
-                            step = 0
-                            setupHint = if (target == "pattern") I18n.s("切换到手势密码前，请先设置手势密码", "Set a pattern before switching to pattern unlock") else I18n.s("切换到数字密码前，请先设置数字密码", "Set a PIN before switching to PIN unlock")
-                        }
-                    }) {
-                        Text(if (lockType == "pin") I18n.s("数字密码", "PIN") else I18n.s("手势密码", "Pattern"))
-                    }
-                }
                 Text(
-                    hint(),
+                    I18n.s("数字密码与手势密码均已配置；解锁界面可在两种方式间切换", "Both PIN and pattern are configured; switch between them on the lock screen"),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                TextButton(onClick = {
-                    setType = lockType
-                    flowMode = "single"
-                    pendingEnable = false
-                    pendingSwitch = false
-                    showSet = true
-                    step = 0
-                    tempPin = ""
-                    tempPattern = ""
-                }) {
-                    Text(I18n.s("修改${if (lockType == "pin") "数字密码" else "手势密码"}", "Change ${if (lockType == "pin") "PIN" else "pattern"}"))
+                Row {
+                    TextButton(onClick = {
+                        setType = "pin"
+                        flowMode = "single"
+                        showSet = true
+                        step = 0
+                        tempPin = ""
+                        tempPattern = ""
+                    }) {
+                        Text(I18n.s("修改数字密码", "Change PIN"))
+                    }
+                    TextButton(onClick = {
+                        setType = "pattern"
+                        flowMode = "single"
+                        showSet = true
+                        step = 0
+                        tempPin = ""
+                        tempPattern = ""
+                    }) {
+                        Text(I18n.s("修改手势密码", "Change Pattern"))
+                    }
                 }
             }
         }
@@ -1424,7 +1397,6 @@ private fun SecuritySection() {
         androidx.compose.ui.window.Dialog(onDismissRequest = {
             showSet = false
             pendingEnable = false
-            pendingSwitch = false
             flowMode = "single"
         }) {
             androidx.compose.material3.Surface(shape = MaterialTheme.shapes.large) {
@@ -1469,10 +1441,8 @@ private fun SecuritySection() {
                                     security.setEnabled(true)
                                     enabled = true
                                     security.setLockType("pin")
-                                    lockType = "pin"
                                     showSet = false
                                     pendingEnable = false
-                                    pendingSwitch = false
                                     flowMode = "single"
                                     setupHint = ""
                                 },
@@ -1489,20 +1459,10 @@ private fun SecuritySection() {
                                 onSuccess = {
                                     security.setPin(tempPin)
                                     pinConfigured = true
-                                    if (pendingEnable || pendingSwitch) {
-                                        security.setEnabled(true)
-                                        enabled = true
-                                    }
-                                    if (pendingSwitch || pendingEnable || !security.isReady()) {
-                                        security.setLockType("pin")
-                                        lockType = "pin"
-                                    }
                                     showSet = false
-                                    pendingEnable = false
-                                    pendingSwitch = false
                                     setupHint = ""
                                 },
-                                onError = { step = 0 },
+                                onError = { step = 0 }, // 两次不一致 → 重新输入两次
                             )
                         }
                     } else {
@@ -1515,18 +1475,10 @@ private fun SecuritySection() {
                                 onSuccess = {
                                     security.setPattern(tempPattern)
                                     patternConfigured = true
-                                    if (pendingEnable || pendingSwitch) {
-                                        security.setEnabled(true)
-                                        enabled = true
-                                        security.setLockType("pattern")
-                                        lockType = "pattern"
-                                    }
                                     showSet = false
-                                    pendingEnable = false
-                                    pendingSwitch = false
                                     setupHint = ""
                                 },
-                                onError = { step = 0 },
+                                onError = { step = 0 }, // 两次不一致 → 重新绘制两次
                             )
                         }
                     }
