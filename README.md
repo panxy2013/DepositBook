@@ -11,17 +11,6 @@
 | 最新（v1.0.23） | [deposit-book-v1.0.23.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.23/deposit-book-v1.0.23.apk) |
 
 历史版本请到 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载。
-| v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
-| v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
-| v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
-| v1.0.13 | [deposit-book-v1.0.13.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.13/deposit-book-v1.0.13.apk) |
-| v1.0.12 | [deposit-book-v1.0.12.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.12/deposit-book-v1.0.12.apk) |
-| v1.0.11 | [deposit-book-v1.0.11.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.11/deposit-book-v1.0.11.apk) |
-| v1.0.10 | [deposit-book-v1.0.10.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.10/deposit-book-v1.0.10.apk) |
-| v1.0.9 | [deposit-book-v1.0.9.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.9/deposit-book-v1.0.9.apk) |
-| v1.0.8 | [deposit-book-v1.0.8.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.8/deposit-book-v1.0.8.apk) |
-| v1.0.7 | [deposit-book-v1.0.7.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.7/deposit-book-v1.0.7.apk) |
-
 > 手机上点击下载后，允许安装未知来源应用即可安装。
 
 ## 应用简介（中文）
