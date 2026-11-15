@@ -4,16 +4,13 @@
 
 ## 下载安装
 
-直接从 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载最新 APK 安装：
+直接从 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载 APK 安装（Release 页保留全部历史版本）：
 
 | 版本 | 下载 |
 |---|---|
-| v1.0.22 | [deposit-book-v1.0.22.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.22/deposit-book-v1.0.22.apk) |
-| v1.0.21 | [deposit-book-v1.0.21.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.21/deposit-book-v1.0.21.apk) |
-| v1.0.20 | [deposit-book-v1.0.20.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.20/deposit-book-v1.0.20.apk) |
-| v1.0.19 | [deposit-book-v1.0.19.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.19/deposit-book-v1.0.19.apk) |
-| v1.0.18 | [deposit-book-v1.0.18.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.18/deposit-book-v1.0.18.apk) |
-| v1.0.17 | [deposit-book-v1.0.17.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.17/deposit-book-v1.0.17.apk) |
+| 最新（v1.0.23） | [deposit-book-v1.0.23.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.23/deposit-book-v1.0.23.apk) |
+
+历史版本请到 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载。
 | v1.0.16 | [deposit-book-v1.0.16.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.16/deposit-book-v1.0.16.apk) |
 | v1.0.15 | [deposit-book-v1.0.15.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.15/deposit-book-v1.0.15.apk) |
 | v1.0.14 | [deposit-book-v1.0.14.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.14/deposit-book-v1.0.14.apk) |
@@ -69,6 +66,8 @@ Perfect for anyone with deposits across multiple banks who wants a clear, always
 
 ## 更新历史
 
+### v1.0.23（2026-11-15）
+- **记住最后一次解锁的方式**：数字密码与手势密码解锁成功后，下次解锁默认使用最近一次解锁成功的方式；解锁界面仍可随时切换
 ### v1.0.22（2026-11-15）
 - **应用锁设置页简化**：去掉「解锁方式」行（数字密码与手势密码默认都要配置）；改为「修改数字密码 / 修改手势密码」两个独立按钮
 - **开启应用锁必须完整配置**：从关闭到开启时必须依次设置数字密码（6位×2次）和手势密码（×2次）；中途取消或两次不一致导致未完成时，应用锁保持关闭不会生效
