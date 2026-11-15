@@ -74,7 +74,11 @@ class MainActivity : ComponentActivity() {
                         lockType = security.getLockType(),
                         savedPin = security.getPin(),
                         savedPattern = security.getPattern(),
-                        onUnlocked = { isLocked = false },
+                        // 记住最后一次解锁的方式：下次解锁默认使用它
+                        onUnlocked = { method ->
+                            security.setLockType(method)
+                            isLocked = false
+                        },
                     )
                 } else {
                     DepositBookRoot(repository = repo)

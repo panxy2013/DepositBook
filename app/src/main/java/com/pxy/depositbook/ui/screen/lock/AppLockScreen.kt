@@ -34,7 +34,8 @@ fun AppLockScreen(
     lockType: String,
     savedPin: String,
     savedPattern: String,
-    onUnlocked: () -> Unit,
+    // 解锁成功时回调本次使用的方式，用于记住「最后一次解锁的方式」
+    onUnlocked: (method: String) -> Unit,
 ) {
     // Surface 铺满整个窗口（包括系统状态栏/导航栏后面的区域），避免露出黑色底色
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -47,7 +48,7 @@ private fun LockContent(
     lockType: String,
     savedPin: String,
     savedPattern: String,
-    onUnlocked: () -> Unit,
+    onUnlocked: (method: String) -> Unit,
 ) {
     val pinConfigured = savedPin.isNotBlank()
     val patternConfigured = savedPattern.isNotBlank()
@@ -72,7 +73,7 @@ private fun LockContent(
             Text(I18n.s("应用锁已开启，但尚未设置任何密码", "App lock is on, but no PIN or pattern is set"), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(16.dp))
             Text(I18n.s("请解锁后到 设置 → 安全 重新配置", "Unlock, then configure it in Settings → Security"), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = onUnlocked) { Text(I18n.s("本次临时解锁", "Temporarily unlocked this time")) }
+            TextButton(onClick = { onUnlocked(current) }) { Text(I18n.s("本次临时解锁", "Temporarily unlocked this time")) }
         }
         return
     }
@@ -87,7 +88,7 @@ private fun LockContent(
                 // 点数跟随已存密码长度：新版 6 位；兼容旧版的 4 位
                 maxLength = if (savedPin.isNotBlank()) savedPin.length else 6,
                 onVerify = { it == savedPin },
-                onSuccess = { onUnlocked() },
+                onSuccess = { onUnlocked("pin") },
             )
         } else {
             PatternLock(
@@ -95,7 +96,7 @@ private fun LockContent(
                 title = I18n.s("请绘制手势密码", "Draw your pattern"),
                 subtitle = subtitleText(methods.size),
                 onVerify = { it == savedPattern },
-                onSuccess = { onUnlocked() },
+                onSuccess = { onUnlocked("pattern") },
             )
         }
         Spacer(Modifier.weight(0.05f))

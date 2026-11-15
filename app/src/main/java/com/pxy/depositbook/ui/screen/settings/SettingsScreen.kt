@@ -1363,7 +1363,7 @@ private fun SecuritySection() {
             }
             if (enabled) {
                 Text(
-                    I18n.s("数字密码与手势密码均已配置；解锁界面可在两种方式间切换", "Both PIN and pattern are configured; switch between them on the lock screen"),
+                    I18n.s("数字密码与手势密码均已配置；下次解锁默认使用最近一次解锁的方式", "Both PIN and pattern are configured; the last method used is remembered for the next unlock"),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
