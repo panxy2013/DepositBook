@@ -8,7 +8,7 @@
 
 | 版本 | 下载 |
 |---|---|
-| 最新（v1.0.23） | [deposit-book-v1.0.23.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.23/deposit-book-v1.0.23.apk) |
+| 最新（v1.0.24） | [deposit-book-v1.0.24.apk](https://github.com/panxy2013/DepositBook/releases/download/v1.0.24/deposit-book-v1.0.24.apk) |
 
 历史版本请到 [Releases](https://github.com/panxy2013/DepositBook/releases) 页面下载。
 > 手机上点击下载后，允许安装未知来源应用即可安装。

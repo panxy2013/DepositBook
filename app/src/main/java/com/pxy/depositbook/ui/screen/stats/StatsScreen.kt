@@ -6,6 +6,8 @@ import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,12 +44,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,6 +65,9 @@ import com.pxy.depositbook.ui.theme.Accent
 import com.pxy.depositbook.ui.theme.ChartColors
 import com.pxy.depositbook.util.FormatUtils
 import com.pxy.depositbook.viewmodel.StatsViewModel
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 @Composable
 fun StatsScreen(
@@ -126,6 +133,7 @@ fun StatsScreen(
 
         item {
             var trendMode by remember { mutableStateOf("month") }
+            var changeMode by remember { mutableStateOf(false) }
             SectionCard(I18n.s("本金趋势", "Principal Trend")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
@@ -139,12 +147,36 @@ fun StatsScreen(
                         label = { Text(I18n.s("按年", "Yearly")) },
                     )
                 }
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = !changeMode,
+                        onClick = { changeMode = false },
+                        label = { Text(I18n.s("累计金额", "Cumulative")) },
+                    )
+                    FilterChip(
+                        selected = changeMode,
+                        onClick = { changeMode = true },
+                        label = {
+                            Text(
+                                if (trendMode == "month") I18n.s("月度变动", "Monthly change")
+                                else I18n.s("年度变动", "Yearly change")
+                            )
+                        },
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
                 val points = if (trendMode == "month") state.monthTrend else state.yearTrend
                 if (points.isEmpty()) {
                     EmptyHint(I18n.s("暂无数据", "No data"))
                 } else {
-                    TrendLineChart(points)
+                    TrendChart(points, changeMode)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        I18n.s("按住图表可查看每期金额", "Touch and hold the chart to inspect a period"),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
@@ -319,39 +351,144 @@ private fun LegendRow(color: Color, name: String, ratio: Float, onClick: () -> U
 }
 
 @Composable
-private fun TrendLineChart(points: List<TrendPoint>) {
-    val max = points.maxOf { it.total }.coerceAtLeast(1.0)
-    val lineColor = MaterialTheme.colorScheme.primary
+private fun TrendChart(points: List<TrendPoint>, changeMode: Boolean) {
     val labelColor = MaterialTheme.colorScheme.onSurface
+    val subtleColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val lineColor = MaterialTheme.colorScheme.primary
+    val negColor = MaterialTheme.colorScheme.error
     val dotFill = MaterialTheme.colorScheme.surface
+    val bubbleBg = MaterialTheme.colorScheme.inverseSurface
+    val bubbleFg = MaterialTheme.colorScheme.inverseOnSurface
+    val surfaceColor = MaterialTheme.colorScheme.surface
 
-    Column {
-        Canvas(modifier = Modifier.fillMaxWidth().height(200.dp)) {
-            val n = points.size
+    var scrub by remember(points, changeMode) { mutableStateOf<Int?>(null) }
 
-            val paint = android.graphics.Paint().apply {
-                isAntiAlias = true
-                textSize = 10.sp.toPx()
-                textAlign = android.graphics.Paint.Align.CENTER
-                color = labelColor.toArgb()
+    // 变化量序列：首期取当期累计值（此前视作 0），之后为相邻两期之差
+    val deltas = if (changeMode) {
+        points.mapIndexed { i, p -> if (i == 0) p.total else p.total - points[i - 1].total }
+    } else emptyList()
+    val values = if (changeMode) deltas else points.map { it.total }
+
+    fun valueText(v: Double): String =
+        if (changeMode && v > 0) "+" + FormatUtils.moneyPlain(v) else FormatUtils.moneyPlain(v)
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .pointerInput(points, changeMode) {
+                detectDragGestures(
+                    onDragStart = { o -> scrub = nearestIndex(o.x, 54.dp.toPx(), size.width.toFloat(), points.size) },
+                    onDrag = { ch, _ -> scrub = nearestIndex(ch.position.x, 54.dp.toPx(), size.width.toFloat(), points.size) },
+                    onDragEnd = { scrub = null },
+                    onDragCancel = { scrub = null },
+                )
             }
-            val topPad = 20.dp.toPx() // 点上方金额标签的空间
-            val chartBottom = size.height
-            val chartH = chartBottom - topPad
+            .pointerInput(points, changeMode) {
+                detectTapGestures(
+                    onPress = { o ->
+                        scrub = nearestIndex(o.x, 54.dp.toPx(), size.width.toFloat(), points.size)
+                        tryAwaitRelease()
+                        scrub = null
+                    },
+                )
+            },
+    ) {
+        val n = points.size
+        val textPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            textSize = 9.5.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            color = labelColor.toArgb()
+        }
+        val axisPaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            textSize = 8.5.sp.toPx()
+            textAlign = android.graphics.Paint.Align.RIGHT
+            color = subtleColor.copy(alpha = 0.85f).toArgb()
+        }
+        val bubblePaint = android.graphics.Paint().apply {
+            isAntiAlias = true
+            textSize = 9.5.sp.toPx()
+            textAlign = android.graphics.Paint.Align.CENTER
+            color = bubbleFg.toArgb()
+        }
 
-            val stepX = size.width / (n - 1).coerceAtLeast(1)
-            val centers = points.mapIndexed { i, _ ->
-                if (n == 1) size.width / 2f else stepX * i
-            }
-            val ys = points.map { p ->
-                chartBottom - ((p.total / max) * (chartH - 8.dp.toPx())).toFloat()
-            }
+        val leftGutter = 54.dp.toPx()
+        val bottomLabels = 22.dp.toPx()
+        val topPad = 24.dp.toPx()
+        val plotLeft = leftGutter
+        val plotRight = size.width - 2.dp.toPx()
+        val plotTop = topPad
+        val plotBottom = size.height - bottomLabels
+        val plotH = (plotBottom - plotTop).coerceAtLeast(1f)
 
-            // 折线（两点以上）
+        // 纵轴自适应：不再从 0 起算，小幅度变化也能看出趋势
+        val lo: Double
+        val hi: Double
+        if (changeMode) {
+            val lowV = minOf(0.0, values.min())
+            val highV = maxOf(0.0, values.max())
+            val span = (highV - lowV).coerceAtLeast(maxOf(abs(highV), abs(lowV)) * 0.05).coerceAtLeast(1.0)
+            lo = lowV - span * 0.18
+            hi = highV + span * 0.18
+        } else {
+            val vMin = values.min()
+            val vMax = values.max()
+            val span = (vMax - vMin).coerceAtLeast(abs(vMax) * 0.04).coerceAtLeast(1.0)
+            lo = vMin - span * 0.2
+            hi = vMax + span * 0.2
+        }
+        fun yOf(v: Double): Float = (plotBottom - ((v - lo) / (hi - lo) * plotH)).toFloat()
+
+        val stepX = if (n == 1) 0f else (plotRight - plotLeft) / (n - 1)
+        val cx = List(n) { i -> if (n == 1) (plotLeft + plotRight) / 2f else plotLeft + stepX * i }
+
+        // 网格线 + 左侧刻度（最小值/中间/最大值）
+        val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx()))
+        val gridColor = subtleColor.copy(alpha = 0.22f)
+        val axisLabels = listOf(lo, (lo + hi) / 2, hi)
+        axisLabels.forEach { v ->
+            val y = yOf(v)
+            drawLine(gridColor, Offset(plotLeft, y), Offset(plotRight, y), strokeWidth = 1f, pathEffect = dash)
+        }
+        // 刻度文字在数据绘制后再画（带底色，避免与柱状/标签文字叠在一起）
+        val drawAxisLabels = {
+            axisLabels.forEach { v ->
+                val y = yOf(v)
+                val t = FormatUtils.moneyPlain(kotlin.math.round(v).toDouble())
+                val tw = axisPaint.measureText(t)
+                val right = leftGutter - 8.dp.toPx()
+                val baseline = y + axisPaint.textSize * 0.35f
+                drawRect(
+                    color = surfaceColor,
+                    topLeft = Offset(right - tw - 2.dp.toPx(), baseline - axisPaint.textSize - 1.dp.toPx()),
+                    size = Size(tw + 4.dp.toPx(), axisPaint.textSize + 4.dp.toPx()),
+                )
+                drawIntoCanvas { it.nativeCanvas.drawText(t, right, baseline, axisPaint) }
+            }
+        }
+
+        if (!changeMode) {
+            // 累计金额：面积渐变 + 折线
             if (n >= 2) {
+                val fill = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx[0], plotBottom)
+                    for (i in 0 until n) lineTo(cx[i], yOf(values[i]))
+                    lineTo(cx[n - 1], plotBottom)
+                    close()
+                }
+                drawPath(
+                    fill,
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        listOf(lineColor.copy(alpha = 0.18f), lineColor.copy(alpha = 0.01f)),
+                        startY = plotTop,
+                        endY = plotBottom,
+                    ),
+                )
                 val path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(centers.first(), ys.first())
-                    for (i in 1 until n) lineTo(centers[i], ys[i])
+                    moveTo(cx[0], yOf(values[0]))
+                    for (i in 1 until n) lineTo(cx[i], yOf(values[i]))
                 }
                 drawPath(
                     path = path,
@@ -359,53 +496,123 @@ private fun TrendLineChart(points: List<TrendPoint>) {
                     style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
                 )
             }
-
-            // 每个点：圆点 + 点上方金额
-            // 去重规则：与上一个已显示金额相同的点（同一段水平线）不重复标注；
-            // 相邻两个标签矩形重叠时也跳过，避免挤在一起
-            var lastText = ""
-            var lastRect: android.graphics.RectF? = null
-            points.forEachIndexed { i, p ->
-                val cx = centers[i]
-                val cy = ys[i]
-                drawCircle(color = dotFill, radius = 6.dp.toPx(), center = Offset(cx, cy))
-                drawCircle(color = lineColor, radius = 4.5f.dp.toPx(), center = Offset(cx, cy))
-
-                val text = FormatUtils.moneyCompact(p.total)
-                val halfW = paint.measureText(text) / 2f
-                val labelX = cx.coerceIn(halfW + 2.dp.toPx(), size.width - halfW - 2.dp.toPx())
-                val labelY = (cy - 12.dp.toPx()).coerceAtLeast(paint.textSize)
-                val rect = android.graphics.RectF(
-                    labelX - halfW,
-                    labelY - paint.textSize,
-                    labelX + halfW,
-                    labelY + 2.dp.toPx(),
+            for (i in 0 until n) {
+                val cy = yOf(values[i])
+                drawCircle(color = dotFill, radius = 5.5.dp.toPx(), center = Offset(cx[i], cy))
+                drawCircle(color = lineColor, radius = 4.dp.toPx(), center = Offset(cx[i], cy))
+            }
+        } else {
+            // 变动量：零轴 + 柱状图（存为正、取为负）
+            val zeroY = yOf(0.0)
+            drawLine(
+                subtleColor.copy(alpha = 0.45f),
+                Offset(plotLeft, zeroY),
+                Offset(plotRight, zeroY),
+                strokeWidth = 1.2.dp.toPx(),
+            )
+            val barW = min(if (n > 1) stepX * 0.55f else 18.dp.toPx(), 16.dp.toPx())
+            for (i in 0 until n) {
+                val v = values[i]
+                if (abs(v) < 1e-6) continue // 无变动不画柱，保持零轴干净
+                val y = yOf(v)
+                val top = min(y, zeroY)
+                val h = abs(y - zeroY).coerceAtLeast(1.5.dp.toPx())
+                drawRoundRect(
+                    color = if (v >= 0) lineColor else negColor,
+                    topLeft = Offset(cx[i] - barW / 2, top),
+                    size = Size(barW, h),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(min(barW / 2, 3.dp.toPx())),
                 )
-                val prev = lastRect
-                if (text == lastText || (prev != null && android.graphics.RectF.intersects(prev, rect))) {
-                    return@forEachIndexed
-                }
-                drawIntoCanvas { canvas ->
-                    canvas.nativeCanvas.drawText(text, labelX, labelY, paint)
-                }
-                lastText = text
-                lastRect = rect
             }
         }
-        Spacer(Modifier.height(6.dp))
-        // 横轴标签（点太多时隔一个显示，避免重叠）
-        Row(Modifier.fillMaxWidth()) {
-            points.forEachIndexed { i, p ->
-                Text(
-                    if (points.size > 8 && i % 2 == 1) "" else p.monthLabel,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    modifier = Modifier.weight(1f),
-                )
+
+        drawAxisLabels()
+
+        // 关键点标注：点数少时全标；点多时只标首尾、最高、最低与大幅变动点
+        val keyIndices: List<Int> = if (n <= 6) {
+            (0 until n).toList()
+        } else {
+            val s = sortedSetOf(0, n - 1, values.indices.maxBy { values[it] }, values.indices.minBy { values[it] })
+            val thr = (hi - lo) * 0.12
+            for (i in 1 until n) if (abs(values[i] - values[i - 1]) >= thr) s.add(i)
+            s.toList()
+        }
+        var lastText = ""
+        var lastRect: android.graphics.RectF? = null
+        for (i in keyIndices) {
+            val v = values[i]
+            val text = valueText(v)
+            val halfW = textPaint.measureText(text) / 2f
+            val labelX = cx[i].coerceIn(leftGutter + halfW + 2.dp.toPx(), size.width - halfW - 2.dp.toPx())
+            val labelY = if (!changeMode) {
+                (yOf(v) - 8.dp.toPx()).coerceAtLeast(textPaint.textSize)
+            } else if (v >= 0) {
+                (min(yOf(v), yOf(0.0)) - 6.dp.toPx()).coerceAtLeast(textPaint.textSize)
+            } else {
+                (yOf(v) + textPaint.textSize + 5.dp.toPx()).coerceAtMost(size.height - 2.dp.toPx())
+            }
+            val rect = android.graphics.RectF(
+                labelX - halfW,
+                labelY - textPaint.textSize,
+                labelX + halfW,
+                labelY + 2.dp.toPx(),
+            )
+            val prev = lastRect
+            if (text == lastText || (prev != null && android.graphics.RectF.intersects(prev, rect))) continue
+            drawIntoCanvas { it.nativeCanvas.drawText(text, labelX, labelY, textPaint) }
+            lastText = text
+            lastRect = rect
+        }
+
+        // 横轴标签：最多 5 个，均匀取点
+        val tickCount = if (n <= 5) n else 5
+        val ticks = (0 until tickCount)
+            .map { if (tickCount == 1) 0 else it * (n - 1) / (tickCount - 1) }
+            .distinct()
+        for (i in ticks) {
+            val text = points[i].monthLabel
+            val halfW = textPaint.measureText(text) / 2f
+            val x = cx[i].coerceIn(halfW + 2.dp.toPx(), size.width - halfW - 2.dp.toPx())
+            drawIntoCanvas { it.nativeCanvas.drawText(text, x, size.height - 6.dp.toPx(), textPaint) }
+        }
+
+        // 按住查看：竖线 + 气泡
+        scrub?.let { raw ->
+            val i = raw.coerceIn(0, n - 1)
+            val x = cx[i]
+            val dotY = yOf(values[i])
+            drawLine(
+                lineColor.copy(alpha = 0.35f),
+                Offset(x, plotTop),
+                Offset(x, plotBottom),
+                strokeWidth = 1.2.dp.toPx(),
+                pathEffect = dash,
+            )
+            drawCircle(color = lineColor, radius = 5.5.dp.toPx(), center = Offset(x, dotY))
+            val txt = points[i].monthLabel + "  " + valueText(values[i])
+            val pad = 8.dp.toPx()
+            val bw = bubblePaint.measureText(txt) + pad * 2
+            val bh = bubblePaint.textSize + pad
+            val bx = (x - bw / 2).coerceIn(2.dp.toPx(), size.width - bw - 2.dp.toPx())
+            val by = (dotY - bh - 12.dp.toPx()).coerceAtLeast(2.dp.toPx())
+            drawRoundRect(
+                color = bubbleBg,
+                topLeft = Offset(bx, by),
+                size = Size(bw, bh),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(bh / 2),
+            )
+            drawIntoCanvas {
+                it.nativeCanvas.drawText(txt, bx + bw / 2, by + bh / 2 + bubblePaint.textSize * 0.35f, bubblePaint)
             }
         }
     }
+}
+
+/** 手指 x 坐标 → 最近的数据点下标（左侧刻度栏之外的绘图区均匀分布） */
+private fun nearestIndex(x: Float, leftPx: Float, width: Float, n: Int): Int {
+    if (n <= 1) return 0
+    val step = (width - leftPx) / (n - 1)
+    return ((x - leftPx) / step).roundToInt().coerceIn(0, n - 1)
 }
 
 @Composable
